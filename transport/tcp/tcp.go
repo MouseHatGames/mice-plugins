@@ -1,8 +1,6 @@
 package tcp
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -61,14 +59,12 @@ func (t *tcpListener) Accept(fn func(transport.Socket)) error {
 
 type tcpSocket struct {
 	c      io.ReadWriteCloser
-	rw     *bufio.ReadWriter
 	mr, ms sync.Mutex
 }
 
 func newSocket(c io.ReadWriteCloser) *tcpSocket {
 	return &tcpSocket{
-		c:  c,
-		rw: bufio.NewReadWriter(bufio.NewReader(c), bufio.NewWriter(c)),
+		c: c,
 	}
 }
 
@@ -81,19 +77,15 @@ func (s *tcpSocket) Send(msg *transport.Message) error {
 	defer s.ms.Unlock()
 
 	// Write message size
-	binary.Write(s.rw, binary.LittleEndian, int16(messageSize(msg)))
+	binary.Write(s.c, binary.LittleEndian, int16(messageSize(msg)))
 
 	// Write headers
-	if err := writeMap(s.rw.Writer, msg.Headers); err != nil {
+	if err := writeMap(s.c, msg.Headers); err != nil {
 		return fmt.Errorf("write headers: %w", err)
 	}
 
-	if err := binary.Write(s.rw, binary.LittleEndian, int16(len(msg.Data))); err != nil {
-		return fmt.Errorf("write data length: %w", err)
-	}
-
 	// Write data
-	if _, err := s.rw.Write(msg.Data); err != nil {
+	if _, err := s.c.Write(msg.Data); err != nil {
 		return fmt.Errorf("write data: %w", err)
 	}
 
@@ -105,13 +97,13 @@ func (s *tcpSocket) Receive(msg *transport.Message) error {
 	defer s.mr.Unlock()
 
 	var len int16
-	if err := binary.Read(s.rw, binary.LittleEndian, &len); err != nil {
+	if err := binary.Read(s.c, binary.LittleEndian, &len); err != nil {
 		return err
 	}
 
-	payload := &bytes.Buffer{}
+	payload := make([]byte, len)
 
-	read, err := io.CopyN(payload, s.rw, int64(len))
+	read, err := io.ReadFull(s.c, payload)
 	if err != nil {
 		return fmt.Errorf("read payload: %w", err)
 	}
@@ -119,7 +111,7 @@ func (s *tcpSocket) Receive(msg *transport.Message) error {
 		return fmt.Errorf("wanted %d bytes, read %d", len, read)
 	}
 
-	if err := decodePayload(payload.Bytes(), msg); err != nil {
+	if err := decodePayload(payload, msg); err != nil {
 		return fmt.Errorf("decode payload: %w", err)
 	}
 
