@@ -113,3 +113,22 @@ func TestReadString(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, str, ret)
 }
+
+func TestDecodePayload(t *testing.T) {
+	data := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	payload := []byte{
+		1, //Map length
+		byte('a'),
+		0,
+		byte('1'),
+		0,
+	}
+
+	payload = append(payload, data...)
+
+	var msg transport.Message
+	err := decodePayload(payload, &msg)
+
+	assert.Nil(t, err)
+	assert.ElementsMatch(t, data, msg.Data)
+}

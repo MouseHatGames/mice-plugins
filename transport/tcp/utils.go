@@ -2,6 +2,8 @@ package tcp
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
 
 	"github.com/MouseHatGames/mice/transport"
 )
@@ -73,4 +75,32 @@ func readString(r *bufio.Reader) (string, error) {
 
 	// Remove trailing null byte
 	return str[:len(str)-1], nil
+}
+
+func messageSize(msg *transport.Message) int {
+	size := len(msg.Data)
+
+	size++ // Headers map length
+	for k, v := range msg.Headers {
+		size += len(k) + 1
+		size += len(v) + 1
+	}
+
+	return size
+}
+
+func decodePayload(p []byte, msg *transport.Message) error {
+	r := bufio.NewReader(bytes.NewReader(p))
+	msg.Data = nil
+
+	header, err := readMap(r)
+	if err != nil {
+		return fmt.Errorf("read header: %w", err)
+	}
+	msg.Headers = header
+
+	dataStart := messageSize(msg)
+	msg.Data = p[dataStart:]
+
+	return nil
 }
