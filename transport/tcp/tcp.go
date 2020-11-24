@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -72,7 +73,7 @@ func (s *tcpSocket) Close() error {
 	return s.c.Close()
 }
 
-func (s *tcpSocket) Send(msg *transport.Message) error {
+func (s *tcpSocket) Send(_ context.Context, msg *transport.Message) error {
 	s.ms.Lock()
 	defer s.ms.Unlock()
 
