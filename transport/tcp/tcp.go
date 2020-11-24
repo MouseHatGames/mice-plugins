@@ -93,9 +93,6 @@ func (s *tcpSocket) Send(msg *transport.Message) error {
 }
 
 func (s *tcpSocket) Receive(msg *transport.Message) error {
-	s.mr.Lock()
-	defer s.mr.Unlock()
-
 	var len int16
 	if err := binary.Read(s.c, binary.LittleEndian, &len); err != nil {
 		return err
