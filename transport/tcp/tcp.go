@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"bufio"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -8,13 +9,21 @@ import (
 	"net"
 	"sync"
 
+	"github.com/MouseHatGames/mice/logger"
+	"github.com/MouseHatGames/mice/options"
 	"github.com/MouseHatGames/mice/transport"
 )
 
-type tcpTransport struct{}
+type tcpTransport struct {
+	l logger.Logger
+}
 
-func New() transport.Transport {
-	return &tcpTransport{}
+func Transport() options.Option {
+	return func(o *options.Options) {
+		o.Transport = &tcpTransport{
+			l: o.Logger.GetLogger("tcp"),
+		}
+	}
 }
 
 func (t *tcpTransport) Listen(addr string) (transport.Listener, error) {
@@ -23,7 +32,8 @@ func (t *tcpTransport) Listen(addr string) (transport.Listener, error) {
 		return nil, fmt.Errorf("listen tcp: %w", err)
 	}
 
-	return &tcpListener{l}, nil
+	t.l.Infof("listening on %s", l.Addr().String())
+	return &tcpListener{l, t.l}, nil
 }
 
 func (t *tcpTransport) Dial(addr string) (transport.Socket, error) {
@@ -36,10 +46,12 @@ func (t *tcpTransport) Dial(addr string) (transport.Socket, error) {
 }
 
 type tcpListener struct {
-	l net.Listener
+	l   net.Listener
+	log logger.Logger
 }
 
 func (t *tcpListener) Close() error {
+	t.log.Debugf("closing listener")
 	return t.l.Close()
 }
 
@@ -48,12 +60,15 @@ func (t *tcpListener) Addr() net.Addr {
 }
 
 func (t *tcpListener) Accept(fn func(transport.Socket)) error {
+	t.log.Debugf("accepting connections")
+
 	for {
 		conn, err := t.l.Accept()
 		if err != nil {
 			return fmt.Errorf("accept connection: %w", err)
 		}
 
+		t.log.Debugf("connection from %s", conn.RemoteAddr())
 		fn(newSocket(conn))
 	}
 }
@@ -64,9 +79,11 @@ type tcpSocket struct {
 }
 
 func newSocket(c io.ReadWriteCloser) *tcpSocket {
-	return &tcpSocket{
+	s := &tcpSocket{
 		c: c,
 	}
+
+	return s
 }
 
 func (s *tcpSocket) Close() error {
@@ -94,14 +111,16 @@ func (s *tcpSocket) Send(_ context.Context, msg *transport.Message) error {
 }
 
 func (s *tcpSocket) Receive(msg *transport.Message) error {
+	r := bufio.NewReader(s.c)
+
 	var len int16
-	if err := binary.Read(s.c, binary.LittleEndian, &len); err != nil {
-		return err
+	if err := binary.Read(r, binary.LittleEndian, &len); err != nil {
+		return fmt.Errorf("read length: %w", err)
 	}
 
 	payload := make([]byte, len)
 
-	read, err := io.ReadFull(s.c, payload)
+	read, err := io.ReadFull(r, payload)
 	if err != nil {
 		return fmt.Errorf("read payload: %w", err)
 	}

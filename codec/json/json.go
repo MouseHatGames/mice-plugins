@@ -3,13 +3,15 @@ package json
 import (
 	"encoding/json"
 
-	"github.com/MouseHatGames/mice/codec"
+	"github.com/MouseHatGames/mice/options"
 )
 
 type jsonCodec struct{}
 
-func New() codec.Codec {
-	return &jsonCodec{}
+func Codec() options.Option {
+	return func(o *options.Options) {
+		o.Codec = &jsonCodec{}
+	}
 }
 
 func (*jsonCodec) Marshal(msg interface{}) ([]byte, error) {
