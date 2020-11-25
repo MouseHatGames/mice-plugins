@@ -26,8 +26,8 @@ jobs:
 
     - name: Test
       env:
-        GO111MODULE: on
-        plugin: "{{ matrix.plugin }}"
+        GO111MODULE: "on"
+        plugin: ${{ matrix.plugin }}
       run: |
         cd $plugin
         sed -i "s/replace .*//" go.mod
