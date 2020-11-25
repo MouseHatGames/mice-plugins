@@ -1,9 +1,11 @@
 package tcp
 
 import (
+	"context"
 	"sync"
 	"testing"
 
+	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/transport"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +19,9 @@ func TestAll(t *testing.T) {
 		Data:    []byte("hello"),
 	}
 
-	tr := New()
+	tr := &tcpTransport{
+		l: logger.NewStdoutLogger(),
+	}
 	l, err := tr.Listen(":0")
 	a.Nil(err, "listen")
 	defer l.Close()
@@ -35,14 +39,14 @@ func TestAll(t *testing.T) {
 		a.Nil(err, "server receive")
 		a.Equal(dummyData, string(msg.Data))
 
-		err = s.Send(dummyMsg)
+		err = s.Send(context.Background(), dummyMsg)
 		a.Nil(err, "server send")
 	})
 
 	s, err := tr.Dial(l.Addr().String())
 	a.Nil(err, "client dial")
 
-	err = s.Send(dummyMsg)
+	err = s.Send(context.Background(), dummyMsg)
 	a.Nil(err, "client send")
 
 	defer s.Close()

@@ -79,11 +79,9 @@ type tcpSocket struct {
 }
 
 func newSocket(c io.ReadWriteCloser) *tcpSocket {
-	s := &tcpSocket{
+	return &tcpSocket{
 		c: c,
 	}
-
-	return s
 }
 
 func (s *tcpSocket) Close() error {
