@@ -29,4 +29,8 @@ jobs:
     #  run: go build -v ./...
 
     - name: Test
-      run: export GO111MODULE=on && cd transport/tcp && go get -v -t -d . && go test -v .
+      run: |
+        export GO111MODULE=on
+        cd transport/tcp
+        go get -v -t -d .
+        go test -v .
