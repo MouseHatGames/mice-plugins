@@ -32,5 +32,6 @@ jobs:
       run: |
         export GO111MODULE=on
         cd transport/tcp
+        sed -i "s/replace .*//" go.mod
         go get -v -t -d .
         go test -v .
