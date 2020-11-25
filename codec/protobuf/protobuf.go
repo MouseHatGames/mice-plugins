@@ -4,16 +4,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/MouseHatGames/mice/codec"
 	"google.golang.org/protobuf/proto"
+	"github.com/MouseHatGames/mice/options"
 )
 
 type protobufCodec struct{}
 
 var ErrInvalidMessage = errors.New("data is not a protobuf message")
 
-func New() codec.Codec {
-	return &protobufCodec{}
+func Codec() options.Option {
+	return func(o *options.Options) {
+		o.Codec = &protobufCodec{}
+	}
 }
 
 func (*protobufCodec) Marshal(msg interface{}) ([]byte, error) {
