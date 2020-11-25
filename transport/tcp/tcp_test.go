@@ -22,20 +22,20 @@ func TestAll(t *testing.T) {
 	tr := &tcpTransport{
 		l: logger.NewStdoutLogger(),
 	}
-	l, err := tr.Listen(":0")
+	l, err := tr.Listen(context.Background(), ":0")
 	a.Nil(err, "listen")
 	defer l.Close()
 
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go l.Accept(func(s transport.Socket) {
+	go l.Accept(context.Background(), func(s transport.Socket) {
 		defer s.Close()
 		defer wg.Done()
 
 		var msg transport.Message
 
-		err := s.Receive(&msg)
+		err := s.Receive(context.Background(), &msg)
 		a.Nil(err, "server receive")
 		a.Equal(dummyData, string(msg.Data))
 
@@ -43,7 +43,7 @@ func TestAll(t *testing.T) {
 		a.Nil(err, "server send")
 	})
 
-	s, err := tr.Dial(l.Addr().String())
+	s, err := tr.Dial(context.Background(), l.Addr().String())
 	a.Nil(err, "client dial")
 
 	err = s.Send(context.Background(), dummyMsg)
@@ -53,7 +53,7 @@ func TestAll(t *testing.T) {
 	wg.Wait()
 
 	var rec transport.Message
-	err = s.Receive(&rec)
+	err = s.Receive(context.Background(), &rec)
 
 	a.Nil(err, "client receive")
 	a.Equal(dummyData, string(rec.Data))

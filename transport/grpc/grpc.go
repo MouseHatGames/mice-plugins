@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/MouseHatGames/mice-plugins/transport/grpc/internal"
 	"github.com/MouseHatGames/mice/logger"
@@ -31,7 +30,7 @@ func Transport() options.Option {
 	}
 }
 
-func (t *grpcTransport) Listen(addr string) (transport.Listener, error) {
+func (t *grpcTransport) Listen(ctx context.Context, addr string) (transport.Listener, error) {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open tcp listener: %w", err)
@@ -48,14 +47,14 @@ func (t *grpcTransport) Listen(addr string) (transport.Listener, error) {
 	}, nil
 }
 
-func (t *grpcTransport) Dial(addr string) (transport.Socket, error) {
-	c, err := grpc.Dial(addr, grpc.WithInsecure())
+func (t *grpcTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
+	c, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
 
 	cl := internal.NewTransportClient(c)
-	str, err := cl.Stream(context.Background())
+	str, err := cl.Stream(ctx)
 	if err != nil {
 		c.Close()
 		return nil, fmt.Errorf("start stream: %w", err)
@@ -80,7 +79,7 @@ func (l *grpcListener) Addr() net.Addr {
 	return l.tcp.Addr()
 }
 
-func (l *grpcListener) Accept(fn func(transport.Socket)) error {
+func (l *grpcListener) Accept(ctx context.Context, fn func(transport.Socket)) error {
 	internal.RegisterTransportServer(l.srv, &server{
 		callback: fn,
 		log:      l.log,
@@ -105,24 +104,27 @@ func (sv *server) Stream(s internal.Transport_StreamServer) error {
 
 	sv.callback(soc)
 
-	soc.wg.Wait()
+	// Don't close the stream until the WaitGroup
+	<-soc.done
 	return nil
 }
 
 type grpcSocket struct {
-	str stream
-	wg  sync.WaitGroup
+	str  stream
+	done chan interface{}
 }
 
 func newSocket(s stream) *grpcSocket {
-	sock := &grpcSocket{str: s}
-	sock.wg.Add(1)
+	sock := &grpcSocket{
+		str:  s,
+		done: make(chan interface{}, 1), // Buffered channel so we can add to it without hanging the Close() method
+	}
 
 	return sock
 }
 
 func (s *grpcSocket) Close() error {
-	s.wg.Done()
+	s.done <- nil
 	return nil
 }
 
@@ -133,7 +135,7 @@ func (s *grpcSocket) Send(ctx context.Context, msg *transport.Message) error {
 	})
 }
 
-func (s *grpcSocket) Receive(msg *transport.Message) error {
+func (s *grpcSocket) Receive(ctx context.Context, msg *transport.Message) error {
 	rec, err := s.str.Recv()
 	if err != nil {
 		return err

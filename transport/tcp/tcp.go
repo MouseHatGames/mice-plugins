@@ -26,7 +26,7 @@ func Transport() options.Option {
 	}
 }
 
-func (t *tcpTransport) Listen(addr string) (transport.Listener, error) {
+func (t *tcpTransport) Listen(ctx context.Context, addr string) (transport.Listener, error) {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("listen tcp: %w", err)
@@ -36,7 +36,7 @@ func (t *tcpTransport) Listen(addr string) (transport.Listener, error) {
 	return &tcpListener{l, t.l}, nil
 }
 
-func (t *tcpTransport) Dial(addr string) (transport.Socket, error) {
+func (t *tcpTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
 	c, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("dial: %w", err)
@@ -59,7 +59,7 @@ func (t *tcpListener) Addr() net.Addr {
 	return t.l.Addr()
 }
 
-func (t *tcpListener) Accept(fn func(transport.Socket)) error {
+func (t *tcpListener) Accept(ctx context.Context, fn func(transport.Socket)) error {
 	t.log.Debugf("accepting connections")
 
 	for {
@@ -108,7 +108,7 @@ func (s *tcpSocket) Send(_ context.Context, msg *transport.Message) error {
 	return nil
 }
 
-func (s *tcpSocket) Receive(msg *transport.Message) error {
+func (s *tcpSocket) Receive(_ context.Context, msg *transport.Message) error {
 	r := bufio.NewReader(s.c)
 
 	var len int16
