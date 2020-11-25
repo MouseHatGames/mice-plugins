@@ -25,9 +25,11 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Test
+      env:
+        GO111MODULE: on
+        plugin: "{{ matrix.plugin }}"
       run: |
-        export GO111MODULE=on
-        cd {{ matrix.plugin }}
+        cd $plugin
         sed -i "s/replace .*//" go.mod
         go get -v -t -d .
         go test -v .
