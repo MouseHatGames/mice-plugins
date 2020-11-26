@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/MouseHatGames/mice/codec"
+	"github.com/MouseHatGames/mice/broker"
 	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/options"
 	"github.com/streadway/amqp"
@@ -14,14 +14,13 @@ import (
 const exchangeName = "mice-amqp"
 
 type rabbitmqBroker struct {
-	addr  string
-	conn  *amqp.Connection
-	ch    *amqp.Channel
-	codec codec.Codec
-	log   logger.Logger
+	addr string
+	conn *amqp.Connection
+	ch   *amqp.Channel
+	log  logger.Logger
 
-	boundQueues      map[string]string
-	declaredExchange bool
+	boundQueues map[string]string
+	connection  chan bool // Will be closed on connection
 }
 
 // Broker instructs Mice to use AMQP as the message broker. Must be used after setting up a codec.
@@ -29,9 +28,9 @@ func Broker(addr string) options.Option {
 	return func(o *options.Options) {
 		o.Broker = &rabbitmqBroker{
 			addr:        addr,
-			codec:       o.Codec,
 			log:         o.Logger.GetLogger("amqp"),
 			boundQueues: make(map[string]string),
+			connection:  make(chan bool),
 		}
 	}
 }
@@ -60,21 +59,22 @@ func (r *rabbitmqBroker) Connect(_ context.Context) error {
 
 	r.conn = conn
 	r.ch = ch
+
+	if err := r.declareExchange(); err != nil {
+		return fmt.Errorf("declare exchange: %w", err)
+	}
+
+	close(r.connection)
 	return nil
 }
 
 func (r *rabbitmqBroker) declareExchange() error {
-	if r.declaredExchange {
-		return nil
-	}
-
 	r.log.Debugf("declaring exchange %s", exchangeName)
 
 	if err := r.ch.ExchangeDeclare(exchangeName, "topic", false, false, false, false, nil); err != nil {
 		return fmt.Errorf("exchange declare: %w", err)
 	}
 
-	r.declaredExchange = true
 	return nil
 }
 
@@ -112,18 +112,9 @@ func (r *rabbitmqBroker) unbindQueue(topic string) error {
 	return nil
 }
 
-func (r *rabbitmqBroker) Publish(ctx context.Context, topic string, data interface{}) error {
-	if err := r.declareExchange(); err != nil {
-		return fmt.Errorf("declare exchange: %w", err)
-	}
-
-	b, err := r.codec.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("marshal data: %w", err)
-	}
-
-	err = r.ch.Publish(exchangeName, topic, false, false, amqp.Publishing{
-		Body: b,
+func (r *rabbitmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message) error {
+	err := r.ch.Publish(exchangeName, topic, false, false, amqp.Publishing{
+		Body: msg.Data,
 	})
 	if err != nil {
 		return fmt.Errorf("publish message: %w", err)
@@ -132,7 +123,18 @@ func (r *rabbitmqBroker) Publish(ctx context.Context, topic string, data interfa
 	return nil
 }
 
-func (r *rabbitmqBroker) Subscribe(ctx context.Context, topic string, callback func(interface{})) error {
+func (r *rabbitmqBroker) Subscribe(ctx context.Context, topic string, callback func(*broker.Message)) error {
+	// If we aren't yet connected, wait for connection on a goroutine then subscribe again with the same parameters
+	if r.conn == nil {
+		go func() {
+			<-r.connection
+			if err := r.Subscribe(ctx, topic, callback); err != nil {
+				r.log.Errorf("deferred subscription failed: %s", err)
+			}
+		}()
+		return nil
+	}
+
 	q, err := r.bindQueue(topic)
 	if err != nil {
 		return fmt.Errorf("create queue: %w", err)
@@ -155,7 +157,7 @@ func (r *rabbitmqBroker) Subscribe(ctx context.Context, topic string, callback f
 					return
 				}
 
-				callback(msg)
+				callback(&broker.Message{Data: msg.Body})
 
 			case <-done:
 				return
