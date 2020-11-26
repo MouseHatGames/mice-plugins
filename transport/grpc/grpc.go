@@ -104,7 +104,7 @@ func (sv *server) Stream(s internal.Transport_StreamServer) error {
 
 	sv.callback(soc)
 
-	// Don't close the stream until the WaitGroup
+	// Don't close the stream until the socket is closed
 	<-soc.done
 	return nil
 }
