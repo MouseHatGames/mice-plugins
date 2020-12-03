@@ -33,8 +33,9 @@ func Discovery(opts ...k8sOption) options.Option {
 		}
 
 		o.Discovery = &k8sDiscovery{
-			opts: k8opt,
-			log:  logging.MustGetLogger("k8s"),
+			opts:  k8opt,
+			log:   logging.MustGetLogger("k8s"),
+			hosts: make(map[string]map[string]time.Time),
 		}
 	}
 }
