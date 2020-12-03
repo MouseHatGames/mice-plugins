@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/MouseHatGames/mice/discovery"
+	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/options"
-	"github.com/op/go-logging"
 	otherv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -15,7 +15,7 @@ import (
 )
 
 type k8sDiscovery struct {
-	log  *logging.Logger
+	log  logger.Logger
 	opts *k8sOptions
 
 	hosts map[string]map[string]struct{}
@@ -33,21 +33,21 @@ func Discovery(opts ...k8sOption) options.Option {
 
 		o.Discovery = &k8sDiscovery{
 			opts:  k8opt,
-			log:   logging.MustGetLogger("k8s"),
+			log:   o.Logger.GetLogger("k8s"),
 			hosts: make(map[string]map[string]struct{}),
 		}
 	}
 }
 
 func (d *k8sDiscovery) Start() error {
-	d.log.Debug("getting in-cluster config")
+	d.log.Debugf("getting in-cluster config")
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return fmt.Errorf("get in-cluster config: %w", err)
 	}
 
-	d.log.Debug("creating client")
+	d.log.Debugf("creating client")
 
 	cl, err := corev1.NewForConfig(config)
 	if err != nil {
@@ -66,7 +66,7 @@ func (d *k8sDiscovery) Start() error {
 }
 
 func (d *k8sDiscovery) watch(w watch.Interface) {
-	d.log.Debug("starting watcher")
+	d.log.Debugf("starting watcher")
 
 	for ev := range w.ResultChan() {
 		d.log.Debugf("received event: %s", ev.Type)
@@ -85,7 +85,7 @@ func (d *k8sDiscovery) watch(w watch.Interface) {
 		switch ev.Type {
 		case watch.Modified:
 			if ip != "" && pod.Status.Phase == otherv1.PodRunning && !added {
-				d.log.Debugf("registered new service '%s' ip: %s", svc, ip)
+				d.log.Debugf("registered new service '%s' pod: %s ip: %s", svc, pod.Name, ip)
 				hosts[ip] = struct{}{}
 			}
 
