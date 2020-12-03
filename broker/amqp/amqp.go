@@ -39,7 +39,7 @@ func (r *rabbitmqBroker) Close() error {
 	return r.conn.Close()
 }
 
-func (r *rabbitmqBroker) Connect(_ context.Context) error {
+func (r *rabbitmqBroker) Start() error {
 	if !strings.HasPrefix(r.addr, "amqp://") {
 		r.addr = "amqp://" + r.addr
 	}
