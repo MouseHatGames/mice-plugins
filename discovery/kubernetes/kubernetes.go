@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -54,7 +55,7 @@ func (d *k8sDiscovery) Start() error {
 	}
 
 	pods := cl.Pods(d.opts.Namespace)
-	w, err := pods.Watch(v1.ListOptions{})
+	w, err := pods.Watch(context.Background(), v1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("start watch: %w", err)
 	}
