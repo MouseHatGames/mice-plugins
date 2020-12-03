@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/MouseHatGames/mice/discovery"
 	"github.com/MouseHatGames/mice/options"
@@ -19,7 +18,7 @@ type k8sDiscovery struct {
 	log  *logging.Logger
 	opts *k8sOptions
 
-	hosts map[string]map[string]time.Time
+	hosts map[string]map[string]struct{}
 }
 
 func Discovery(opts ...k8sOption) options.Option {
@@ -35,7 +34,7 @@ func Discovery(opts ...k8sOption) options.Option {
 		o.Discovery = &k8sDiscovery{
 			opts:  k8opt,
 			log:   logging.MustGetLogger("k8s"),
-			hosts: make(map[string]map[string]time.Time),
+			hosts: make(map[string]map[string]struct{}),
 		}
 	}
 }
@@ -81,25 +80,28 @@ func (d *k8sDiscovery) watch(w watch.Interface) {
 
 		ip := pod.Status.PodIP
 		hosts := d.getHosts(svc)
+		_, added := hosts[ip]
 
 		switch ev.Type {
 		case watch.Modified:
-			if ip != "" {
-				d.log.Debugf("registered new service '%s' ip: %", svc, ip)
-				hosts[ip] = time.Now()
+			if ip != "" && pod.Status.Phase == otherv1.PodRunning && !added {
+				d.log.Debugf("registered new service '%s' ip: %s", svc, ip)
+				hosts[ip] = struct{}{}
 			}
 
 		case watch.Deleted:
-			d.log.Debugf("deleted service '%s' ip %s", svc, ip)
-			delete(hosts, ip)
+			if added {
+				d.log.Debugf("deleted service '%s' ip %s", svc, ip)
+				delete(hosts, ip)
+			}
 		}
 	}
 }
 
-func (d *k8sDiscovery) getHosts(svc string) map[string]time.Time {
+func (d *k8sDiscovery) getHosts(svc string) map[string]struct{} {
 	m, ok := d.hosts[svc]
 	if !ok {
-		m = make(map[string]time.Time)
+		m = make(map[string]struct{})
 		d.hosts[svc] = m
 	}
 
