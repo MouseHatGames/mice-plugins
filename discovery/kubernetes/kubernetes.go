@@ -21,7 +21,7 @@ type k8sDiscovery struct {
 	hosts map[string]map[string]struct{}
 }
 
-func Discovery(opts ...k8sOption) options.Option {
+func Discovery(opts ...K8sOption) options.Option {
 	return func(o *options.Options) {
 		k8opt := &k8sOptions{
 			Namespace: "default",
@@ -29,6 +29,10 @@ func Discovery(opts ...k8sOption) options.Option {
 
 		for _, opt := range opts {
 			opt(k8opt)
+		}
+
+		if k8opt.Selection == nil {
+			RoundRobin()(k8opt)
 		}
 
 		o.Discovery = &k8sDiscovery{
