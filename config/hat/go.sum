@@ -11,6 +11,8 @@ github.com/MouseHatGames/hat/pkg/client v0.0.0-20210121082126-1b8dbddfe5e7 h1:Wk
 github.com/MouseHatGames/hat/pkg/client v0.0.0-20210121082126-1b8dbddfe5e7/go.mod h1:krNlFijg4a9waqwiMiknhqbuXaCd7JgNh5xBOXuQNE8=
 github.com/MouseHatGames/mice v1.2.0 h1:qgfI8TfIXRsLL+USA02l7c6K0mGc2yWYStWOe91ODJc=
 github.com/MouseHatGames/mice v1.2.0/go.mod h1:Zml0bIiLnFoNEylVWSEsnpscvXmSMnR9jqr/aYh/jNw=
+github.com/MouseHatGames/mice v1.2.1 h1:x2PfahWZjda9I//NwqSOBYlTfNCVmj27x7aRi8ePeyI=
+github.com/MouseHatGames/mice v1.2.1/go.mod h1:Zml0bIiLnFoNEylVWSEsnpscvXmSMnR9jqr/aYh/jNw=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=

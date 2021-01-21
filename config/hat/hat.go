@@ -33,7 +33,7 @@ func (c *hatConfig) Get(path ...string) config.Value {
 	return c.hat.Get(path...)
 }
 
-func (c *hatConfig) Del(path ...string) error {
+func (c *hatConfig) Delete(path ...string) error {
 	return c.hat.Del(path...)
 }
 
