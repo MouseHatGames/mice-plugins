@@ -14,7 +14,7 @@ func Config(endpoint string) options.Option {
 	}
 }
 
-func ConfigWithClient(cl mhat.Client) options.Option {
+func ConfigFromClient(cl mhat.Client) options.Option {
 	return func(o *options.Options) {
 		o.Config = &hatConfig{
 			hat: cl,
