@@ -14,12 +14,24 @@ func Config(endpoint string) options.Option {
 	}
 }
 
+func ConfigWithClient(cl mhat.Client) options.Option {
+	return func(o *options.Options) {
+		o.Config = &hatConfig{
+			hat: cl,
+		}
+	}
+}
+
 type hatConfig struct {
 	endpoint string
 	hat      mhat.Client
 }
 
 func (c *hatConfig) Start() error {
+	if c.hat != nil {
+		return nil
+	}
+
 	cl, err := mhat.Dial(c.endpoint)
 	if err != nil {
 		return err
