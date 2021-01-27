@@ -9,12 +9,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/transport"
 )
 
 type httpIncomingSocket struct {
 	rw              http.ResponseWriter
 	r               *http.Request
+	log             logger.Logger
 	sentResponse    bool
 	receivedRequest bool
 }
@@ -29,6 +31,8 @@ func (s *httpIncomingSocket) Send(ctx context.Context, msg *transport.Message) e
 	if s.sentResponse {
 		return errors.New("response already sent")
 	}
+
+	s.log.Debugf("sending response with %s bytes", len(msg.Data))
 
 	for k, v := range msg.Headers {
 		s.rw.Header().Add(fmt.Sprintf("%s%s", headerPrefix, k), v)
@@ -53,6 +57,8 @@ func (s *httpIncomingSocket) Receive(ctx context.Context, msg *transport.Message
 	}
 	msg.Data = b
 	msg.Headers = getMiceHeaders(s.r.Header)
+
+	s.log.Debugf("received request with %s bytes", len(msg.Data))
 
 	return nil
 }

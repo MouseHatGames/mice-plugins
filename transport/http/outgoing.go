@@ -8,12 +8,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/transport"
 )
 
 type httpOutgoingSocket struct {
 	address string
 	resp    chan *http.Response
+	log     logger.Logger
 }
 
 var _ transport.Socket = (*httpOutgoingSocket)(nil)
@@ -23,6 +25,8 @@ func (s *httpOutgoingSocket) Close() error {
 }
 
 func (s *httpOutgoingSocket) Send(ctx context.Context, msg *transport.Message) error {
+	s.log.Debugf("sending request with %s bytes", len(msg.Data))
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/request", s.address), bytes.NewReader(msg.Data))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
@@ -53,6 +57,8 @@ func (s *httpOutgoingSocket) Receive(ctx context.Context, msg *transport.Message
 	}
 	msg.Data = b
 	msg.Headers = getMiceHeaders(resp.Header)
+
+	s.log.Debugf("received response with %s bytes", len(msg.Data))
 
 	return nil
 }
