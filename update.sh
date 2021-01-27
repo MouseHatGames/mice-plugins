@@ -9,6 +9,6 @@ fi
 for d in */*/; do (
     echo "[*] $d"
     cd $d
-    go get $pkg@latest
+    go get $pkg@v1.2.2
 )
 done

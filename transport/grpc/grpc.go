@@ -75,10 +75,6 @@ func (l *grpcListener) Close() error {
 	return nil
 }
 
-func (l *grpcListener) Addr() net.Addr {
-	return l.tcp.Addr()
-}
-
 func (l *grpcListener) Accept(ctx context.Context, fn func(transport.Socket)) error {
 	internal.RegisterTransportServer(l.srv, &server{
 		callback: fn,

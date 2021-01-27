@@ -1,0 +1,58 @@
+package http
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+
+	"github.com/MouseHatGames/mice/transport"
+)
+
+type httpOutgoingSocket struct {
+	address string
+	resp    chan *http.Response
+}
+
+var _ transport.Socket = (*httpOutgoingSocket)(nil)
+
+func (s *httpOutgoingSocket) Close() error {
+	return nil
+}
+
+func (s *httpOutgoingSocket) Send(ctx context.Context, msg *transport.Message) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/request", s.address), bytes.NewReader(msg.Data))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	for k, v := range msg.Headers {
+		req.Header.Add(fmt.Sprintf("%s%s", headerPrefix, k), v)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("request: %w", err)
+	}
+	s.resp <- resp
+
+	return nil
+}
+
+func (s *httpOutgoingSocket) Receive(ctx context.Context, msg *transport.Message) error {
+	resp, ok := <-s.resp
+	if !ok {
+		return errors.New("no response was received")
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+	msg.Data = b
+	msg.Headers = getMiceHeaders(resp.Header)
+
+	return nil
+}
