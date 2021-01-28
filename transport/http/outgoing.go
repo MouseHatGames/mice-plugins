@@ -21,6 +21,7 @@ type httpOutgoingSocket struct {
 var _ transport.Socket = (*httpOutgoingSocket)(nil)
 
 func (s *httpOutgoingSocket) Close() error {
+	s.log.Debugf("closing outgoing socket")
 	return nil
 }
 

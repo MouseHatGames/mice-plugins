@@ -25,6 +25,7 @@ type httpIncomingSocket struct {
 var _ transport.Socket = (*httpIncomingSocket)(nil)
 
 func (s *httpIncomingSocket) Close() error {
+	s.log.Debugf("closing incoming socket")
 	s.closer <- struct{}{}
 	return nil
 }
