@@ -84,7 +84,8 @@ func getMiceHeaders(h http.Header) (mh map[string]string) {
 	for k, v := range h {
 		if strings.HasPrefix(k, headerPrefix) {
 			name := strings.TrimPrefix(k, headerPrefix)
-			mh[name] = v[0]
+
+			mh[name] = strings.ToLower(v[0])
 		}
 	}
 
