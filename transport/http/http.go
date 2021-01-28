@@ -51,12 +51,10 @@ func (l *httpListener) Close() error {
 func (l *httpListener) Accept(ctx context.Context, fn func(transport.Socket)) error {
 	handler := http.NewServeMux()
 	handler.HandleFunc("/request", func(rw http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodOptions {
-			rw.Header().Add("Access-Control-Allow-Origin", "*")
-			rw.Header().Add("Access-Control-Allow-Methods", "POST")
-			rw.Header().Add("Access-Control-Allow-Headers", "*")
-			return
-		}
+		rw.Header().Add("Access-Control-Allow-Origin", "*")
+		rw.Header().Add("Access-Control-Allow-Methods", "POST")
+		rw.Header().Add("Access-Control-Allow-Headers", "*")
+
 		if r.Method != http.MethodPost {
 			return
 		}
