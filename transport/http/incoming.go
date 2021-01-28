@@ -36,7 +36,7 @@ func (s *httpIncomingSocket) Send(ctx context.Context, msg *transport.Message) e
 	}
 	s.sentResponse = true
 
-	s.log.Debugf("sending response with %s bytes", len(msg.Data))
+	s.log.Debugf("sending response with %d bytes", len(msg.Data))
 
 	for k, v := range msg.Headers {
 		s.rw.Header().Add(headerPrefix+k, v)
@@ -63,7 +63,7 @@ func (s *httpIncomingSocket) Receive(ctx context.Context, msg *transport.Message
 	msg.Data = b
 	msg.Headers = getMiceHeaders(s.r.Header)
 
-	s.log.Debugf("received request with %s bytes", len(msg.Data))
+	s.log.Debugf("received request with %d bytes", len(msg.Data))
 
 	return nil
 }
