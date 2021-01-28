@@ -10,7 +10,7 @@ import (
 	"github.com/MouseHatGames/mice/transport"
 )
 
-const headerPrefix = "X-Mice-%s"
+const headerPrefix = "X-Mice-"
 
 type httpTransport struct {
 	log logger.Logger

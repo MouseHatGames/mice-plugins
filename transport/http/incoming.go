@@ -36,7 +36,7 @@ func (s *httpIncomingSocket) Send(ctx context.Context, msg *transport.Message) e
 	s.log.Debugf("sending response with %s bytes", len(msg.Data))
 
 	for k, v := range msg.Headers {
-		s.rw.Header().Add(fmt.Sprintf("%s%s", headerPrefix, k), v)
+		s.rw.Header().Add(headerPrefix+k, v)
 	}
 
 	body := bytes.NewReader(msg.Data)

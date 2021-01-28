@@ -33,7 +33,7 @@ func (s *httpOutgoingSocket) Send(ctx context.Context, msg *transport.Message) e
 	}
 
 	for k, v := range msg.Headers {
-		req.Header.Add(fmt.Sprintf("%s%s", headerPrefix, k), v)
+		req.Header.Add(headerPrefix+k, v)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
