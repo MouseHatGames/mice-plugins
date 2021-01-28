@@ -31,6 +31,7 @@ func (s *httpIncomingSocket) Send(ctx context.Context, msg *transport.Message) e
 	if s.sentResponse {
 		return errors.New("response already sent")
 	}
+	s.sentResponse = true
 
 	s.log.Debugf("sending response with %s bytes", len(msg.Data))
 
@@ -48,8 +49,9 @@ func (s *httpIncomingSocket) Send(ctx context.Context, msg *transport.Message) e
 
 func (s *httpIncomingSocket) Receive(ctx context.Context, msg *transport.Message) error {
 	if s.receivedRequest {
-		return errors.New("request already received")
+		return io.EOF
 	}
+	s.receivedRequest = true
 
 	b, err := ioutil.ReadAll(s.r.Body)
 	if err != nil {

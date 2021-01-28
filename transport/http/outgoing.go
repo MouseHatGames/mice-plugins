@@ -3,8 +3,8 @@ package http
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -48,7 +48,7 @@ func (s *httpOutgoingSocket) Send(ctx context.Context, msg *transport.Message) e
 func (s *httpOutgoingSocket) Receive(ctx context.Context, msg *transport.Message) error {
 	resp, ok := <-s.resp
 	if !ok {
-		return errors.New("no response was received")
+		return io.EOF
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
