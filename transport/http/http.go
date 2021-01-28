@@ -57,11 +57,16 @@ func (l *httpListener) Accept(ctx context.Context, fn func(transport.Socket)) er
 
 		l.log.Debugf("got request from %s", r.RemoteAddr)
 
+		close := make(chan struct{}, 1)
+
 		fn(&httpIncomingSocket{
-			rw:  rw,
-			r:   r,
-			log: l.log,
+			rw:     rw,
+			r:      r,
+			log:    l.log,
+			closer: close,
 		})
+
+		<-close
 	})
 
 	l.log.Debugf("accepting connections")

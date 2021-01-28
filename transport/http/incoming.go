@@ -17,6 +17,7 @@ type httpIncomingSocket struct {
 	rw              http.ResponseWriter
 	r               *http.Request
 	log             logger.Logger
+	closer          chan<- struct{}
 	sentResponse    bool
 	receivedRequest bool
 }
@@ -24,6 +25,7 @@ type httpIncomingSocket struct {
 var _ transport.Socket = (*httpIncomingSocket)(nil)
 
 func (s *httpIncomingSocket) Close() error {
+	s.closer <- struct{}{}
 	return nil
 }
 
