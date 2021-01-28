@@ -51,6 +51,10 @@ func (l *httpListener) Close() error {
 func (l *httpListener) Accept(ctx context.Context, fn func(transport.Socket)) error {
 	handler := http.NewServeMux()
 	handler.HandleFunc("/request", func(rw http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			return
+		}
+
 		l.log.Debugf("got request from %s", r.RemoteAddr)
 
 		fn(&httpIncomingSocket{
