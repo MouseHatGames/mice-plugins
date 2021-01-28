@@ -36,6 +36,8 @@ github.com/MouseHatGames/mice v1.2.2 h1:ZDC3EMA0ykRgO8X0/8FO1W8yUqpO+glhTV8tlFvA
 github.com/MouseHatGames/mice v1.2.2/go.mod h1:Zml0bIiLnFoNEylVWSEsnpscvXmSMnR9jqr/aYh/jNw=
 github.com/MouseHatGames/mice v1.2.3 h1:ScBX1/1iQNjn0/ZmNM/Q4WxVBHg45A+Gpl6Xh3+x4ro=
 github.com/MouseHatGames/mice v1.2.3/go.mod h1:Zml0bIiLnFoNEylVWSEsnpscvXmSMnR9jqr/aYh/jNw=
+github.com/MouseHatGames/mice v1.2.4 h1:pEv03IjdeKwcjK6JSxT9W4E3fBvYpY+k1CMOwDcnh6I=
+github.com/MouseHatGames/mice v1.2.4/go.mod h1:Zml0bIiLnFoNEylVWSEsnpscvXmSMnR9jqr/aYh/jNw=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/PuerkitoBio/purell v1.0.0/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20160726150825-5bd2802263f2/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
