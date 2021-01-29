@@ -1,12 +1,10 @@
 package http
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/MouseHatGames/mice/logger"
@@ -38,13 +36,8 @@ func (s *httpIncomingSocket) Send(ctx context.Context, msg *transport.Message) e
 
 	s.log.Debugf("sending response with %d bytes", len(msg.Data))
 
-	for k, v := range msg.Headers {
-		s.rw.Header().Add(headerPrefix+k, v)
-	}
-
-	body := bytes.NewReader(msg.Data)
-	if _, err := io.Copy(s.rw, body); err != nil {
-		return err
+	if err := marshalMessage(s.rw, msg); err != nil {
+		return fmt.Errorf("encode message: %w", err)
 	}
 
 	return nil
@@ -56,12 +49,9 @@ func (s *httpIncomingSocket) Receive(ctx context.Context, msg *transport.Message
 	}
 	s.receivedRequest = true
 
-	b, err := ioutil.ReadAll(s.r.Body)
-	if err != nil {
-		return fmt.Errorf("read body: %w", err)
+	if err := unmarshalMessage(s.r.Body, msg); err != nil {
+		return fmt.Errorf("read message: %w", err)
 	}
-	msg.Data = b
-	msg.Headers = getMiceHeaders(s.r.Header)
 
 	s.log.Debugf("received request with %d bytes", len(msg.Data))
 

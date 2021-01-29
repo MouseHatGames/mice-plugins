@@ -3,9 +3,9 @@ package http
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/MouseHatGames/mice/logger"
@@ -28,13 +28,15 @@ func (s *httpOutgoingSocket) Close() error {
 func (s *httpOutgoingSocket) Send(ctx context.Context, msg *transport.Message) error {
 	s.log.Debugf("sending request with %d bytes", len(msg.Data))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/request", s.address), bytes.NewReader(msg.Data))
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("encode message: %w", err)
+	}
+	br := bytes.NewReader(b)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/request", s.address), br)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
-	}
-
-	for k, v := range msg.Headers {
-		req.Header.Add(headerPrefix+k, v)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -52,12 +54,9 @@ func (s *httpOutgoingSocket) Receive(ctx context.Context, msg *transport.Message
 		return io.EOF
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read body: %w", err)
+	if err := unmarshalMessage(resp.Body, msg); err != nil {
+		return fmt.Errorf("read message: %w", err)
 	}
-	msg.Data = b
-	msg.Headers = getMiceHeaders(resp.Header)
 
 	s.log.Debugf("received response with %d bytes", len(msg.Data))
 

@@ -2,6 +2,9 @@ package http
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -90,4 +93,20 @@ func getMiceHeaders(h http.Header) (mh map[string]string) {
 	}
 
 	return
+}
+
+func unmarshalMessage(r io.Reader, msg *transport.Message) error {
+	dec := json.NewDecoder(r)
+
+	if err := dec.Decode(msg); err != nil {
+		return fmt.Errorf("parse json: %w", err)
+	}
+
+	return nil
+}
+
+func marshalMessage(w io.Writer, msg *transport.Message) error {
+	enc := json.NewEncoder(w)
+
+	return enc.Encode(msg)
 }
