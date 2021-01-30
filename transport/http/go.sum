@@ -10,6 +10,8 @@ github.com/MouseHatGames/mice v1.2.5 h1:I1HUn+DLhxJ/h8Kj4McvIrtHhgoW6DCr6t98ogPD
 github.com/MouseHatGames/mice v1.2.5/go.mod h1:Zml0bIiLnFoNEylVWSEsnpscvXmSMnR9jqr/aYh/jNw=
 github.com/MouseHatGames/mice v1.2.6 h1:aK6FEEw+kS9VfQzH2Y95cjIAu8PT9JpCuoNQY5ksU2U=
 github.com/MouseHatGames/mice v1.2.6/go.mod h1:Zml0bIiLnFoNEylVWSEsnpscvXmSMnR9jqr/aYh/jNw=
+github.com/MouseHatGames/mice v1.2.7 h1:zbAYCTtoIwtRpH4VAQVqtTQ+fR99hdnSPRYxHVpYwiQ=
+github.com/MouseHatGames/mice v1.2.7/go.mod h1:Zml0bIiLnFoNEylVWSEsnpscvXmSMnR9jqr/aYh/jNw=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
