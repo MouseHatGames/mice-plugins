@@ -165,12 +165,16 @@ func (d *k8sDiscovery) getPodHosts(pod *otherv1.Pod) podHosts {
 }
 
 func (d *k8sDiscovery) Find(svc string) (host string, err error) {
+	d.log.Debugf("requested service %s", svc)
+
 	hosts := d.hosts[svc]
 
 	// Return first host if the map is not empty
 	for k := range hosts {
+		d.log.Debugf("found host %s for %s", k, svc)
 		return k, nil
 	}
 
+	d.log.Errorf("no host found for %s", svc)
 	return "", discovery.ErrServiceNotRegistered
 }
