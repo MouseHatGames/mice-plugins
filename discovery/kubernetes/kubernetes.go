@@ -14,11 +14,13 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+type podHosts = map[string]struct{}
+
 type k8sDiscovery struct {
 	log  logger.Logger
 	opts *k8sOptions
 
-	hosts map[string]map[string]struct{}
+	hosts map[string]podHosts
 }
 
 func Discovery(opts ...K8sOption) options.Option {
@@ -38,7 +40,7 @@ func Discovery(opts ...K8sOption) options.Option {
 		o.Discovery = &k8sDiscovery{
 			opts:  k8opt,
 			log:   o.Logger.GetLogger("k8s"),
-			hosts: make(map[string]map[string]struct{}),
+			hosts: make(map[string]podHosts),
 		}
 	}
 }
@@ -59,6 +61,16 @@ func (d *k8sDiscovery) Start() error {
 	}
 
 	pods := cl.Pods(d.opts.Namespace)
+
+	// podlist, err := pods.List(context.Background(), v1.ListOptions{LabelSelector: "mice"})
+	// if err != nil {
+	// 	return fmt.Errorf("list pods: %w", err)
+	// }
+
+	// for _, pod := range podlist.Items {
+
+	// }
+
 	w, err := pods.Watch(context.Background(), v1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("start watch: %w", err)
@@ -82,30 +94,66 @@ func (d *k8sDiscovery) watch(w watch.Interface) {
 			continue
 		}
 
-		ip := pod.Status.PodIP
-		hosts := d.getHosts(svc)
-		_, added := hosts[ip]
-
 		switch ev.Type {
-		case watch.Modified:
-			if ip != "" && pod.Status.Phase == otherv1.PodRunning && !added {
-				d.log.Debugf("registered new service '%s' pod: %s ip: %s", svc, pod.Name, ip)
-				hosts[ip] = struct{}{}
+		case watch.Modified, watch.Added:
+			if pod.Status.Phase == otherv1.PodRunning && d.register(pod) {
+				d.log.Debugf("registered new service '%s' pod: %s ip: %s", svc, pod.Name, pod.Status.PodIP)
 			}
 
 		case watch.Deleted:
-			if added {
-				d.log.Debugf("deleted service '%s' ip %s", svc, ip)
-				delete(hosts, ip)
+			if d.unregister(pod) {
+				d.log.Debugf("unregistered service '%s' ip %s", svc, pod.Status.PodIP)
 			}
 		}
 	}
 }
 
-func (d *k8sDiscovery) getHosts(svc string) map[string]struct{} {
+func (d *k8sDiscovery) register(pod *otherv1.Pod) (added bool) {
+	ip := pod.Status.PodIP
+	if ip == "" {
+		return false
+	}
+
+	hosts := d.getPodHosts(pod)
+	if hosts == nil {
+		return false
+	}
+
+	_, added = hosts[ip]
+	hosts[ip] = struct{}{}
+
+	return added
+}
+
+func (d *k8sDiscovery) unregister(pod *otherv1.Pod) (removed bool) {
+	ip := pod.Status.PodIP
+	if ip == "" {
+		return false
+	}
+
+	hosts := d.getPodHosts(pod)
+	if hosts == nil {
+		return false
+	}
+
+	_, removed = hosts[ip]
+	if removed {
+		delete(hosts, ip)
+	}
+
+	return removed
+}
+
+func (d *k8sDiscovery) getPodHosts(pod *otherv1.Pod) podHosts {
+	svc, ok := pod.Labels["mice"]
+
+	if !ok {
+		return nil
+	}
+
 	m, ok := d.hosts[svc]
 	if !ok {
-		m = make(map[string]struct{})
+		m = make(podHosts)
 		d.hosts[svc] = m
 	}
 
