@@ -62,14 +62,14 @@ func (d *k8sDiscovery) Start() error {
 
 	pods := cl.Pods(d.opts.Namespace)
 
-	// podlist, err := pods.List(context.Background(), v1.ListOptions{LabelSelector: "mice"})
-	// if err != nil {
-	// 	return fmt.Errorf("list pods: %w", err)
-	// }
+	podlist, err := pods.List(context.Background(), v1.ListOptions{LabelSelector: "mice"})
+	if err != nil {
+		return fmt.Errorf("list pods: %w", err)
+	}
 
-	// for _, pod := range podlist.Items {
-
-	// }
+	for _, pod := range podlist.Items {
+		d.register(&pod)
+	}
 
 	w, err := pods.Watch(context.Background(), v1.ListOptions{})
 	if err != nil {
@@ -96,8 +96,8 @@ func (d *k8sDiscovery) watch(w watch.Interface) {
 
 		switch ev.Type {
 		case watch.Modified, watch.Added:
-			if pod.Status.Phase == otherv1.PodRunning && d.register(pod) {
-				d.log.Debugf("registered new service '%s' pod: %s ip: %s", svc, pod.Name, pod.Status.PodIP)
+			if pod.Status.Phase == otherv1.PodRunning {
+				d.register(pod)
 			}
 
 		case watch.Deleted:
@@ -121,6 +121,10 @@ func (d *k8sDiscovery) register(pod *otherv1.Pod) (added bool) {
 
 	_, added = hosts[ip]
 	hosts[ip] = struct{}{}
+
+	if added {
+		d.log.Debugf("registered new service '%s' pod: %s ip: %s", pod.Labels["mice"], pod.Name, pod.Status.PodIP)
+	}
 
 	return added
 }
