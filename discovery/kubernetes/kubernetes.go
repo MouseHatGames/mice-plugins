@@ -169,6 +169,8 @@ func (d *k8sDiscovery) Find(svc string) (host string, err error) {
 
 	hosts := d.hosts[svc]
 
+	d.log.Debugf("found %d hosts", len(hosts))
+
 	// Return first host if the map is not empty
 	for k := range hosts {
 		d.log.Debugf("found host %s for %s", k, svc)
