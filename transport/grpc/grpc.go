@@ -50,7 +50,7 @@ func (t *grpcTransport) Listen(ctx context.Context, addr string) (transport.List
 func (t *grpcTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
 	t.log.Debugf("dialing %s", addr)
 
-	c, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
+	c, err := grpc.DialContext(ctx, "ipv4:"+addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
