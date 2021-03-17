@@ -9,6 +9,8 @@ fi
 for d in */*/; do (
     echo "[*] $d"
     cd $d
-    GO111MODULE=on go get $pkg@latest
+    GO111MODULE=on go get $pkg@master
 )
 done
+
+git add *.mod *.sum
