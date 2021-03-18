@@ -51,7 +51,7 @@ func (t *grpcTransport) Listen(ctx context.Context, addr string) (transport.List
 	}, nil
 }
 
-func (t *grpcTransport) createStream(ctx context.Context, addr string, p pool.Pool) (*grpcClientSocket, error) {
+func (t *grpcTransport) createStream(ctx context.Context, addr string) (*grpcClientSocket, error) {
 	t.log.Debugf("create stream to %s", addr)
 
 	c, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
@@ -59,7 +59,9 @@ func (t *grpcTransport) createStream(ctx context.Context, addr string, p pool.Po
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
 
-	return newClientSocket(ctx, c, p.Put)
+	return newClientSocket(ctx, c, func(o interface{}) error {
+		return t.getPool(addr).Put(o)
+	})
 }
 
 func (t *grpcTransport) getPool(addr string) pool.Pool {
@@ -73,7 +75,7 @@ func (t *grpcTransport) getPool(addr string) pool.Pool {
 			IdleTimeout: 15 * time.Second,
 			Factory: func() (interface{}, error) {
 				t.log.Debugf("pool instantiating stream to %s", addr)
-				return t.createStream(context.Background(), addr, p)
+				return t.createStream(context.Background(), addr)
 			},
 			Close: func(o interface{}) error {
 				t.log.Debugf("pool closing stream to %s", addr)
