@@ -50,17 +50,10 @@ func (t *grpcTransport) Listen(ctx context.Context, addr string) (transport.List
 func (t *grpcTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
 	t.log.Debugf("dialing %s", addr)
 
-	c, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithContextDialer(func(ctx context.Context, h string) (net.Conn, error) {
-		t.log.Debugf("context dial %s", h)
-		c, err := net.Dial("tcp", h)
-		t.log.Debugf("context dial error: %#v", err)
-		return c, err
-	}))
+	c, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
-
-	t.log.Debugf("target:", c.Target())
 
 	cl := internal.NewTransportClient(c)
 	str, err := cl.Stream(ctx)
