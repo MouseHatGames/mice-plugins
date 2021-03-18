@@ -52,7 +52,9 @@ func (t *grpcTransport) Dial(ctx context.Context, addr string) (transport.Socket
 
 	c, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithContextDialer(func(ctx context.Context, h string) (net.Conn, error) {
 		t.log.Debugf("context dial %s", h)
-		return net.Dial("tcp", h)
+		c, err := net.Dial("tcp", h)
+		t.log.Debugf("context dial error: %#v", err)
+		return c, err
 	}))
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial: %w", err)
