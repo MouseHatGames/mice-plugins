@@ -60,6 +60,8 @@ func (t *grpcTransport) Dial(ctx context.Context, addr string) (transport.Socket
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
 
+	t.log.Debugf("target:", c.Target())
+
 	cl := internal.NewTransportClient(c)
 	str, err := cl.Stream(ctx)
 	if err != nil {
