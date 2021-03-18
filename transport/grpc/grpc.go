@@ -59,7 +59,6 @@ func (t *grpcTransport) createStream(ctx context.Context, addr string) (*grpcCli
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
 
-	fmt.Println("hello")
 	return newClientSocket(ctx, c, func(o interface{}) error {
 		return t.getPool(addr).Put(o)
 	})
@@ -70,7 +69,7 @@ func (t *grpcTransport) getPool(addr string) pool.Pool {
 	if !ok {
 		var err error
 		p, err = pool.NewChannelPool(&pool.Config{
-			InitialCap:  5,
+			InitialCap:  3,
 			MaxIdle:     10,
 			MaxCap:      15,
 			IdleTimeout: 15 * time.Second,
@@ -90,6 +89,8 @@ func (t *grpcTransport) getPool(addr string) pool.Pool {
 		if err != nil {
 			panic(err)
 		}
+
+		t.pools[addr] = p
 	}
 
 	return p
