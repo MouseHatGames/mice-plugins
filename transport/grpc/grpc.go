@@ -81,10 +81,13 @@ func (t *grpcTransport) getPool(addr string) pool.Pool {
 				t.log.Debugf("pool closing stream to %s", addr)
 				return o.(*grpcClientSocket).CloseConn()
 			},
-			// Ping: func(o interface{}) error {
-			// 	_, err := o.(*grpcClientSocket).tr.Ping(context.Background(), &internal.Empty{})
-			// 	return err
-			// },
+			Ping: func(o interface{}) error {
+				_, err := o.(*grpcClientSocket).tr.Ping(context.Background(), &internal.Empty{})
+				if err != nil {
+					t.log.Errorf("ping to %s failed: %s", addr, err)
+				}
+				return err
+			},
 		})
 		if err != nil {
 			panic(err)
