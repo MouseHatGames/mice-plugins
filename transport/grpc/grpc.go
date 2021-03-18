@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/MouseHatGames/mice-plugins/transport/grpc/internal"
 	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/options"
 	"github.com/MouseHatGames/mice/transport"
+	"github.com/silenceper/pool"
 	"google.golang.org/grpc"
 )
 
@@ -18,14 +20,16 @@ type stream interface {
 }
 
 type grpcTransport struct {
-	addr string
-	log  logger.Logger
+	addr  string
+	log   logger.Logger
+	pools map[string]pool.Pool
 }
 
 func Transport() options.Option {
 	return func(o *options.Options) {
 		o.Transport = &grpcTransport{
-			log: o.Logger.GetLogger("grpc"),
+			log:   o.Logger.GetLogger("grpc"),
+			pools: make(map[string]pool.Pool),
 		}
 	}
 }
@@ -47,22 +51,57 @@ func (t *grpcTransport) Listen(ctx context.Context, addr string) (transport.List
 	}, nil
 }
 
-func (t *grpcTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
-	t.log.Debugf("dialing %s", addr)
+func (t *grpcTransport) createStream(ctx context.Context, addr string, p pool.Pool) (*grpcClientSocket, error) {
+	t.log.Debugf("create stream to %s", addr)
 
 	c, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
 
-	cl := internal.NewTransportClient(c)
-	str, err := cl.Stream(ctx)
-	if err != nil {
-		c.Close()
-		return nil, fmt.Errorf("start stream: %w", err)
+	return newClientSocket(ctx, c, p.Put)
+}
+
+func (t *grpcTransport) getPool(addr string) pool.Pool {
+	p, ok := t.pools[addr]
+	if !ok {
+		var err error
+		p, err = pool.NewChannelPool(&pool.Config{
+			InitialCap:  5,
+			MaxIdle:     10,
+			MaxCap:      15,
+			IdleTimeout: 15 * time.Second,
+			Factory: func() (interface{}, error) {
+				t.log.Debugf("pool instantiating stream to %s", addr)
+				return t.createStream(context.Background(), addr, p)
+			},
+			Close: func(o interface{}) error {
+				t.log.Debugf("pool closing stream to %s", addr)
+				return o.(*grpcClientSocket).CloseConn()
+			},
+			Ping: func(o interface{}) error {
+				_, err := o.(*grpcClientSocket).tr.Ping(context.Background(), &internal.Empty{})
+				return err
+			},
+		})
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	return newSocket(str), nil
+	return p
+}
+
+func (t *grpcTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
+	t.log.Debugf("dialing %s", addr)
+
+	p := t.getPool(addr)
+	s, err := p.Get()
+	if err != nil {
+		return nil, fmt.Errorf("get socket: %w", err)
+	}
+
+	return s.(*grpcClientSocket), nil
 }
 
 type grpcListener struct {
@@ -87,6 +126,7 @@ func (l *grpcListener) Accept(ctx context.Context, fn func(transport.Socket)) er
 
 	if err := l.srv.Serve(l.tcp); err != nil {
 		l.log.Errorf("failed to serve grpc: %w", err)
+		return fmt.Errorf("serve grpc: %w", err)
 	}
 	return nil
 }
@@ -97,49 +137,16 @@ type server struct {
 	log      logger.Logger
 }
 
+func (*server) Ping(context.Context, *internal.Empty) (*internal.Empty, error) {
+	return &internal.Empty{}, nil
+}
+
 func (sv *server) Stream(s internal.Transport_StreamServer) error {
-	soc := newSocket(s)
+	soc := newServerSocket(s)
 
 	sv.callback(soc)
 
 	// Don't close the stream until the socket is closed
 	<-soc.done
-	return nil
-}
-
-type grpcSocket struct {
-	str  stream
-	done chan interface{}
-}
-
-func newSocket(s stream) *grpcSocket {
-	sock := &grpcSocket{
-		str:  s,
-		done: make(chan interface{}, 1), // Buffered channel so we can add to it without hanging the Close() method
-	}
-
-	return sock
-}
-
-func (s *grpcSocket) Close() error {
-	s.done <- nil
-	return nil
-}
-
-func (s *grpcSocket) Send(ctx context.Context, msg *transport.Message) error {
-	return s.str.Send(&internal.Message{
-		Headers: msg.Headers,
-		Data:    msg.Data,
-	})
-}
-
-func (s *grpcSocket) Receive(ctx context.Context, msg *transport.Message) error {
-	rec, err := s.str.Recv()
-	if err != nil {
-		return err
-	}
-
-	msg.Headers = rec.Headers
-	msg.Data = rec.Data
 	return nil
 }

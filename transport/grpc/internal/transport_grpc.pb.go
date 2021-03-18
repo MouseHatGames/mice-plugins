@@ -17,6 +17,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TransportClient interface {
+	Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	Stream(ctx context.Context, opts ...grpc.CallOption) (Transport_StreamClient, error)
 }
 
@@ -26,6 +27,15 @@ type transportClient struct {
 
 func NewTransportClient(cc grpc.ClientConnInterface) TransportClient {
 	return &transportClient{cc}
+}
+
+func (c *transportClient) Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/Transport/Ping", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *transportClient) Stream(ctx context.Context, opts ...grpc.CallOption) (Transport_StreamClient, error) {
@@ -63,6 +73,7 @@ func (x *transportStreamClient) Recv() (*Message, error) {
 // All implementations must embed UnimplementedTransportServer
 // for forward compatibility
 type TransportServer interface {
+	Ping(context.Context, *Empty) (*Empty, error)
 	Stream(Transport_StreamServer) error
 	mustEmbedUnimplementedTransportServer()
 }
@@ -71,6 +82,9 @@ type TransportServer interface {
 type UnimplementedTransportServer struct {
 }
 
+func (UnimplementedTransportServer) Ping(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
+}
 func (UnimplementedTransportServer) Stream(Transport_StreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method Stream not implemented")
 }
@@ -85,6 +99,24 @@ type UnsafeTransportServer interface {
 
 func RegisterTransportServer(s grpc.ServiceRegistrar, srv TransportServer) {
 	s.RegisterService(&_Transport_serviceDesc, srv)
+}
+
+func _Transport_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransportServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Transport/Ping",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransportServer).Ping(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Transport_Stream_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -116,7 +148,12 @@ func (x *transportStreamServer) Recv() (*Message, error) {
 var _Transport_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "Transport",
 	HandlerType: (*TransportServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Ping",
+			Handler:    _Transport_Ping_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Stream",

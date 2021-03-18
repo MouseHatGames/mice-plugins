@@ -2,8 +2,11 @@ syntax = "proto3";
 option go_package = "github.com/MouseHatGames/mice-plugins/transport/grpc/internal";
 
 service Transport {
+    rpc Ping(Empty) returns (Empty) {}
     rpc Stream(stream Message) returns (stream Message) {}
 }
+
+message Empty {}
 
 message Message {
     map<string, string> headers = 1;
