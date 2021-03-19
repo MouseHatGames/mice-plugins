@@ -77,8 +77,7 @@ func (l *httpListener) Accept(ctx context.Context, fn func(transport.Socket)) er
 	})
 
 	l.log.Debugf("accepting connections")
-	http.ListenAndServe(l.addr, handler)
-	return nil
+	return http.ListenAndServe(l.addr, handler)
 }
 
 func getMiceHeaders(h http.Header) (mh map[string]string) {
