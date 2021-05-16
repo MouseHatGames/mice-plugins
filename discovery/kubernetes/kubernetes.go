@@ -71,6 +71,8 @@ func (d *k8sDiscovery) Start() error {
 		return fmt.Errorf("list pods: %w", err)
 	}
 
+	d.log.Debugf("resource version is %s", resVer)
+
 	w, err := d.podClient.Watch(context.Background(), v1.ListOptions{ResourceVersion: resVer})
 	if err != nil {
 		return fmt.Errorf("start watch: %w", err)
@@ -123,6 +125,8 @@ func (d *k8sDiscovery) refreshAll() (resVer string, err error) {
 	d.hostsLock.Lock()
 	defer d.hostsLock.Unlock()
 
+	d.log.Debugf("refreshing all pods")
+
 	d.hosts = make(map[string]podHosts)
 
 	podlist, err := d.podClient.List(context.Background(), v1.ListOptions{LabelSelector: "mice"})
@@ -131,8 +135,11 @@ func (d *k8sDiscovery) refreshAll() (resVer string, err error) {
 	}
 
 	for _, pod := range podlist.Items {
-		d.register(&pod)
+		ok := d.register(&pod)
+		d.log.Debugf("added pod %s: %t", pod.Name, ok)
 	}
+
+	d.log.Debugf("registered %d pods, resource version is %s", len(d.hosts), podlist.ResourceVersion)
 
 	return podlist.ResourceVersion, nil
 }
@@ -140,6 +147,8 @@ func (d *k8sDiscovery) refreshAll() (resVer string, err error) {
 func (d *k8sDiscovery) register(pod *otherv1.Pod) (added bool) {
 	d.hostsLock.Lock()
 	defer d.hostsLock.Unlock()
+
+	d.log.Debugf("attempting to register pod %s", pod.Name)
 
 	ip := pod.Status.PodIP
 	if ip == "" {
@@ -212,6 +221,5 @@ func (d *k8sDiscovery) Find(svc string) (host string, err error) {
 		return k, nil
 	}
 
-	d.log.Errorf("no host found for %s", svc)
 	return "", discovery.ErrServiceNotRegistered
 }
