@@ -1,12 +1,16 @@
 package kubernetes
 
-import "math/rand"
+import (
+	"math/rand"
+	"time"
+)
 
 type selection func(hosts []string) string
 
 type k8sOptions struct {
-	Namespace string
-	Selection selection
+	Namespace       string
+	Selection       selection
+	RefreshInterval time.Duration
 }
 
 type K8sOption func(*k8sOptions)
@@ -15,6 +19,13 @@ type K8sOption func(*k8sOptions)
 func Namespace(ns string) K8sOption {
 	return func(o *k8sOptions) {
 		o.Namespace = ns
+	}
+}
+
+// RefreshInterval sets the interval at which pods will be refreshed
+func RefreshInterval(t time.Duration) K8sOption {
+	return func(o *k8sOptions) {
+		o.RefreshInterval = t
 	}
 }
 

@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/MouseHatGames/mice/discovery"
 	"github.com/MouseHatGames/mice/logger"
@@ -17,16 +19,19 @@ import (
 type podHosts = map[string]struct{}
 
 type k8sDiscovery struct {
-	log  logger.Logger
-	opts *k8sOptions
+	log       logger.Logger
+	opts      *k8sOptions
+	podClient corev1.PodInterface
 
-	hosts map[string]podHosts
+	hostsLock sync.Mutex
+	hosts     map[string]podHosts
 }
 
 func Discovery(opts ...K8sOption) options.Option {
 	return func(o *options.Options) {
 		k8opt := &k8sOptions{
-			Namespace: "default",
+			Namespace:       "default",
+			RefreshInterval: 30 * time.Second,
 		}
 
 		for _, opt := range opts {
@@ -60,23 +65,19 @@ func (d *k8sDiscovery) Start() error {
 		return fmt.Errorf("get clientset: %w", err)
 	}
 
-	pods := cl.Pods(d.opts.Namespace)
-
-	podlist, err := pods.List(context.Background(), v1.ListOptions{LabelSelector: "mice"})
+	d.podClient = cl.Pods(d.opts.Namespace)
+	resVer, err := d.refreshAll()
 	if err != nil {
 		return fmt.Errorf("list pods: %w", err)
 	}
 
-	for _, pod := range podlist.Items {
-		d.register(&pod)
-	}
-
-	w, err := pods.Watch(context.Background(), v1.ListOptions{})
+	w, err := d.podClient.Watch(context.Background(), v1.ListOptions{ResourceVersion: resVer})
 	if err != nil {
 		return fmt.Errorf("start watch: %w", err)
 	}
 
 	go d.watch(w)
+	go d.startRefresh()
 
 	return nil
 }
@@ -98,6 +99,8 @@ func (d *k8sDiscovery) watch(w watch.Interface) {
 		case watch.Modified, watch.Added:
 			if pod.Status.Phase == otherv1.PodRunning {
 				d.register(pod)
+			} else {
+				d.unregister(pod)
 			}
 
 		case watch.Deleted:
@@ -108,7 +111,36 @@ func (d *k8sDiscovery) watch(w watch.Interface) {
 	}
 }
 
+func (d *k8sDiscovery) startRefresh() {
+	t := time.Tick(d.opts.RefreshInterval)
+
+	for range t {
+		d.refreshAll()
+	}
+}
+
+func (d *k8sDiscovery) refreshAll() (resVer string, err error) {
+	d.hostsLock.Lock()
+	defer d.hostsLock.Unlock()
+
+	d.hosts = make(map[string]podHosts)
+
+	podlist, err := d.podClient.List(context.Background(), v1.ListOptions{LabelSelector: "mice"})
+	if err != nil {
+		return "", fmt.Errorf("list pods: %w", err)
+	}
+
+	for _, pod := range podlist.Items {
+		d.register(&pod)
+	}
+
+	return podlist.ResourceVersion, nil
+}
+
 func (d *k8sDiscovery) register(pod *otherv1.Pod) (added bool) {
+	d.hostsLock.Lock()
+	defer d.hostsLock.Unlock()
+
 	ip := pod.Status.PodIP
 	if ip == "" {
 		return false
@@ -130,6 +162,9 @@ func (d *k8sDiscovery) register(pod *otherv1.Pod) (added bool) {
 }
 
 func (d *k8sDiscovery) unregister(pod *otherv1.Pod) (removed bool) {
+	d.hostsLock.Lock()
+	defer d.hostsLock.Unlock()
+
 	ip := pod.Status.PodIP
 	if ip == "" {
 		return false
