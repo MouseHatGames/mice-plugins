@@ -11,20 +11,20 @@ import (
 	"github.com/MouseHatGames/mice/options"
 	otherv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
 
-type podHosts = map[string]struct{}
+type endpoints = []string
 
 type k8sDiscovery struct {
-	log       logger.Logger
-	opts      *k8sOptions
-	podClient corev1.PodInterface
+	log            logger.Logger
+	opts           *k8sOptions
+	endpointClient corev1.EndpointsInterface
 
-	hostsLock sync.Mutex
-	hosts     map[string]podHosts
+	lastRefresh time.Time
+	hostsLock   sync.Mutex
+	hosts       map[string]endpoints
 }
 
 func Discovery(opts ...K8sOption) options.Option {
@@ -45,7 +45,7 @@ func Discovery(opts ...K8sOption) options.Option {
 		o.Discovery = &k8sDiscovery{
 			opts:  k8opt,
 			log:   o.Logger.GetLogger("k8s"),
-			hosts: make(map[string]podHosts),
+			hosts: make(map[string]endpoints),
 		}
 	}
 }
@@ -65,161 +65,90 @@ func (d *k8sDiscovery) Start() error {
 		return fmt.Errorf("get clientset: %w", err)
 	}
 
-	d.podClient = cl.Pods(d.opts.Namespace)
-	resVer, err := d.refreshAll()
-	if err != nil {
-		return fmt.Errorf("list pods: %w", err)
-	}
-
-	d.log.Debugf("resource version is %s", resVer)
-
-	w, err := d.podClient.Watch(context.Background(), v1.ListOptions{ResourceVersion: resVer})
-	if err != nil {
-		return fmt.Errorf("start watch: %w", err)
-	}
-
-	go d.watch(w)
-	go d.startRefresh()
+	d.endpointClient = cl.Endpoints(d.opts.Namespace)
 
 	return nil
 }
 
-func (d *k8sDiscovery) watch(w watch.Interface) {
-	d.log.Debugf("starting watcher")
+func (d *k8sDiscovery) refreshAll() error {
+	d.hostsLock.Lock()
+	defer d.hostsLock.Unlock()
 
-	for ev := range w.ResultChan() {
-		d.log.Debugf("received event: %s", ev.Type)
+	d.log.Debugf("refreshing all endpoints")
 
-		pod := ev.Object.(*otherv1.Pod)
-		svc, ok := pod.Labels["mice"]
+	d.hosts = make(map[string]endpoints)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	endpoints, err := d.endpointClient.List(ctx, v1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("list pods: %w", err)
+	}
+
+	for _, ep := range endpoints.Items {
+		name, ok := d.getEndpointHosts(&ep)
 		if !ok {
 			continue
 		}
 
-		switch ev.Type {
-		case watch.Modified, watch.Added:
-			if pod.Status.Phase == otherv1.PodRunning {
-				d.register(pod)
-			} else {
-				d.unregister(pod)
-			}
-
-		case watch.Deleted:
-			if d.unregister(pod) {
-				d.log.Debugf("unregistered service '%s' ip %s", svc, pod.Status.PodIP)
+		for _, subset := range ep.Subsets {
+			for _, addr := range subset.Addresses {
+				d.hosts[name] = append(d.hosts[name], addr.IP)
 			}
 		}
+
+		d.log.Debugf("added endpoint %s: %t", ep.Name, ok)
 	}
+
+	d.log.Debugf("registered %d endpoints", len(d.hosts))
+	d.lastRefresh = time.Now()
+
+	return nil
 }
 
-func (d *k8sDiscovery) startRefresh() {
-	t := time.Tick(d.opts.RefreshInterval)
-
-	for range t {
-		d.refreshAll()
+func (d *k8sDiscovery) refreshIfStale() {
+	if time.Now().Sub(d.lastRefresh) <= d.opts.RefreshInterval {
+		return
 	}
+
+	d.log.Debugf("stale, refreshing")
+
+	go func() {
+		err := d.refreshAll()
+		if err != nil {
+			d.log.Errorf("failed to refresh stale: %s", err)
+		}
+	}()
 }
 
-func (d *k8sDiscovery) refreshAll() (resVer string, err error) {
-	d.hostsLock.Lock()
-	defer d.hostsLock.Unlock()
-
-	d.log.Debugf("refreshing all pods")
-
-	d.hosts = make(map[string]podHosts)
-
-	podlist, err := d.podClient.List(context.Background(), v1.ListOptions{LabelSelector: "mice"})
-	if err != nil {
-		return "", fmt.Errorf("list pods: %w", err)
-	}
-
-	for _, pod := range podlist.Items {
-		ok := d.register(&pod)
-		d.log.Debugf("added pod %s: %t", pod.Name, ok)
-	}
-
-	d.log.Debugf("registered %d pods, resource version is %s", len(d.hosts), podlist.ResourceVersion)
-
-	return podlist.ResourceVersion, nil
-}
-
-func (d *k8sDiscovery) register(pod *otherv1.Pod) (added bool) {
-	d.hostsLock.Lock()
-	defer d.hostsLock.Unlock()
-
-	d.log.Debugf("attempting to register pod %s", pod.Name)
-
-	ip := pod.Status.PodIP
-	if ip == "" {
-		return false
-	}
-
-	hosts := d.getPodHosts(pod)
-	if hosts == nil {
-		return false
-	}
-
-	_, added = hosts[ip]
-	hosts[ip] = struct{}{}
-
-	if added {
-		d.log.Debugf("registered new service '%s' pod: %s ip: %s", pod.Labels["mice"], pod.Name, pod.Status.PodIP)
-	}
-
-	return added
-}
-
-func (d *k8sDiscovery) unregister(pod *otherv1.Pod) (removed bool) {
-	d.hostsLock.Lock()
-	defer d.hostsLock.Unlock()
-
-	ip := pod.Status.PodIP
-	if ip == "" {
-		return false
-	}
-
-	hosts := d.getPodHosts(pod)
-	if hosts == nil {
-		return false
-	}
-
-	_, removed = hosts[ip]
-	if removed {
-		delete(hosts, ip)
-	}
-
-	return removed
-}
-
-func (d *k8sDiscovery) getPodHosts(pod *otherv1.Pod) podHosts {
-	svc, ok := pod.Labels["mice"]
+func (d *k8sDiscovery) getEndpointHosts(eps *otherv1.Endpoints) (string, bool) {
+	svc, ok := eps.Labels["mice"]
 
 	if !ok {
-		return nil
+		return "", false
 	}
 
-	m, ok := d.hosts[svc]
+	_, ok = d.hosts[svc]
 	if !ok {
-		m = make(podHosts)
-		d.hosts[svc] = m
+		d.hosts[svc] = make(endpoints, 0, 3)
 	}
 
-	return m
+	return svc, true
 }
 
 func (d *k8sDiscovery) Find(svc string) (host string, err error) {
 	d.log.Debugf("requested service %s", svc)
 
+	d.refreshIfStale()
+
 	hosts := d.hosts[svc]
 
 	d.log.Debugf("found %d hosts", len(hosts))
 
-	// Return first host if the map is not empty
-	for k := range hosts {
-		d.log.Debugf("found host %s for %s", k, svc)
-		return k, nil
+	if len(hosts) == 0 {
+		return "", discovery.ErrServiceNotRegistered
 	}
 
-	return "", discovery.ErrServiceNotRegistered
+	return d.opts.Selection(hosts), nil
 }
