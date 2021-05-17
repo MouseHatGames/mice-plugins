@@ -8,6 +8,7 @@ import (
 	"github.com/MouseHatGames/mice/discovery"
 	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/options"
+	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -20,15 +21,14 @@ type k8sDiscovery struct {
 	opts           *k8sOptions
 	endpointClient corev1.EndpointsInterface
 
-	lastRefresh time.Time
-	refreshLock uint32
+	cache *cache.Cache
 }
 
 func Discovery(opts ...K8sOption) options.Option {
 	return func(o *options.Options) {
 		k8opt := &k8sOptions{
-			Namespace:       "default",
-			RefreshInterval: 30 * time.Second,
+			Namespace: "default",
+			CacheTime: 1 * time.Minute,
 		}
 
 		for _, opt := range opts {
@@ -40,8 +40,9 @@ func Discovery(opts ...K8sOption) options.Option {
 		}
 
 		o.Discovery = &k8sDiscovery{
-			opts: k8opt,
-			log:  o.Logger.GetLogger("k8s"),
+			opts:  k8opt,
+			log:   o.Logger.GetLogger("k8s"),
+			cache: cache.New(k8opt.CacheTime, 5*time.Minute),
 		}
 	}
 }
@@ -67,6 +68,10 @@ func (d *k8sDiscovery) Start() error {
 }
 
 func (d *k8sDiscovery) getEndpoints(name string) ([]string, error) {
+	if val, ok := d.cache.Get(name); ok {
+		return val.([]string), nil
+	}
+
 	d.log.Debugf("fetching %s endpoints", name)
 	start := time.Now()
 
@@ -90,6 +95,7 @@ func (d *k8sDiscovery) getEndpoints(name string) ([]string, error) {
 
 	d.log.Debugf("got %d endpoints for %s in %s", len(hosts), name, time.Now().Sub(start))
 
+	d.cache.SetDefault(name, hosts)
 	return hosts, nil
 }
 

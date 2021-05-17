@@ -8,9 +8,9 @@ import (
 type selection func(hosts []string) string
 
 type k8sOptions struct {
-	Namespace       string
-	Selection       selection
-	RefreshInterval time.Duration
+	Namespace string
+	Selection selection
+	CacheTime time.Duration
 }
 
 type K8sOption func(*k8sOptions)
@@ -22,10 +22,10 @@ func Namespace(ns string) K8sOption {
 	}
 }
 
-// RefreshInterval sets the interval at which pods will be refreshed
-func RefreshInterval(t time.Duration) K8sOption {
+// CacheTime sets the time that addresses will be cached before being fetched again
+func CacheTime(t time.Duration) K8sOption {
 	return func(o *k8sOptions) {
-		o.RefreshInterval = t
+		o.CacheTime = t
 	}
 }
 
