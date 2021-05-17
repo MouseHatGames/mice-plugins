@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/MouseHatGames/mice/discovery"
@@ -23,7 +23,7 @@ type k8sDiscovery struct {
 	endpointClient corev1.EndpointsInterface
 
 	lastRefresh time.Time
-	hostsLock   sync.Mutex
+	refreshLock uint32
 	hosts       map[string]endpoints
 }
 
@@ -67,14 +67,21 @@ func (d *k8sDiscovery) Start() error {
 
 	d.endpointClient = cl.Endpoints(d.opts.Namespace)
 
+	if err = d.refreshAll(); err != nil {
+		d.log.Errorf("failed to load endpoints: %s", err)
+	}
+
 	return nil
 }
 
 func (d *k8sDiscovery) refreshAll() error {
-	d.hostsLock.Lock()
-	defer d.hostsLock.Unlock()
+	if !atomic.CompareAndSwapUint32(&d.refreshLock, 0, 1) {
+		return nil
+	}
+	defer atomic.StoreUint32(&d.refreshLock, 0)
 
 	d.log.Debugf("refreshing all endpoints")
+	start := time.Now()
 
 	d.hosts = make(map[string]endpoints)
 
@@ -101,7 +108,7 @@ func (d *k8sDiscovery) refreshAll() error {
 		d.log.Debugf("added endpoint %s: %t", ep.Name, ok)
 	}
 
-	d.log.Debugf("registered %d endpoints", len(d.hosts))
+	d.log.Debugf("registered %d endpoints in %s", len(d.hosts), time.Now().Sub(start))
 	d.lastRefresh = time.Now()
 
 	return nil
@@ -114,12 +121,10 @@ func (d *k8sDiscovery) refreshIfStale() {
 
 	d.log.Debugf("stale, refreshing")
 
-	go func() {
-		err := d.refreshAll()
-		if err != nil {
-			d.log.Errorf("failed to refresh stale: %s", err)
-		}
-	}()
+	err := d.refreshAll()
+	if err != nil {
+		d.log.Errorf("failed to refresh stale: %s", err)
+	}
 }
 
 func (d *k8sDiscovery) getEndpointHosts(eps *otherv1.Endpoints) (string, bool) {
