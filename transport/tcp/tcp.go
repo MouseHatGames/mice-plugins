@@ -22,7 +22,8 @@ type tcpTransport struct {
 func Transport() options.Option {
 	return func(o *options.Options) {
 		o.Transport = &tcpTransport{
-			l: o.Logger.GetLogger("tcp"),
+			l:     o.Logger.GetLogger("tcp"),
+			pools: map[string]*gncp.GncpPool{},
 		}
 	}
 }
