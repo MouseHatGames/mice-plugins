@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/options"
@@ -15,16 +16,27 @@ import (
 )
 
 type tcpTransport struct {
-	l         logger.Logger
-	pools     map[string]pool.Pool
+	l     logger.Logger
+	pools map[string]pool.Pool
+	opts  *tcpOptions
+
 	dialMutex sync.Mutex
 }
 
-func Transport() options.Option {
+func Transport(opts ...Option) options.Option {
+	tcpOpts := &tcpOptions{
+		UseConnectionPooling: true,
+	}
+
+	for _, o := range opts {
+		o(tcpOpts)
+	}
+
 	return func(o *options.Options) {
 		o.Transport = &tcpTransport{
 			l:     o.Logger.GetLogger("tcp"),
 			pools: map[string]pool.Pool{},
+			opts:  tcpOpts,
 		}
 	}
 }
@@ -39,50 +51,72 @@ func (t *tcpTransport) Listen(ctx context.Context, addr string) (transport.Liste
 	return &tcpListener{l, t.l}, nil
 }
 
+func (t *tcpTransport) getPooledSocket(addr string) (*tcpSocket, error) {
+	p, ok := t.pools[addr]
+	if !ok {
+		pl, err := pool.NewChannelPool(&pool.Config{
+			InitialCap: 5,
+			MaxIdle:    10,
+			MaxCap:     20,
+			Factory: func(p pool.Pool) (interface{}, error) {
+				t.l.Debugf("creating connection to %s", addr)
+
+				c, err := net.Dial("tcp", addr)
+				if err != nil {
+					return nil, err
+				}
+
+				return &tcpSocket{
+					conn: c,
+					pool: p,
+				}, nil
+			},
+			Close: func(c interface{}) error {
+				t.l.Debugf("closing connection to %s", addr)
+
+				return c.(*tcpSocket).conn.Close()
+			},
+			IdleTimeout: 5 * time.Second,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create pool: %w", err)
+		}
+
+		p = pl
+		t.pools[addr] = pl
+	}
+
+	s, err := p.Get()
+	if err != nil {
+		return nil, err
+	}
+
+	return s.(*tcpSocket), nil
+}
+
 func (t *tcpTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
 	t.dialMutex.Lock()
 	defer t.dialMutex.Unlock()
 
-	// p, ok := t.pools[addr]
-	// if !ok {
-	// 	pl, err := pool.NewChannelPool(&pool.Config{
-	// 		InitialCap: 5,
-	// 		MaxIdle:    10,
-	// 		MaxCap:     20,
-	// 		Factory: func(p pool.Pool) (interface{}, error) {
-	// 			t.l.Debugf("creating connection to %s", addr)
+	var c *tcpSocket
 
-	// 			c, err := net.Dial("tcp", addr)
-	// 			if err != nil {
-	// 				return nil, err
-	// 			}
+	if t.opts.UseConnectionPooling {
+		soc, err := t.getPooledSocket(addr)
+		if err != nil {
+			return nil, fmt.Errorf("get pooled socket: %w", err)
+		}
 
-	// 			return &tcpSocket{
-	// 				conn: c,
-	// 				pool: p,
-	// 			}, nil
-	// 		},
-	// 		Close: func(c interface{}) error {
-	// 			t.l.Debugf("closing connection to %s", addr)
+		c = soc
+	} else {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("dial: %w", err)
+		}
 
-	// 			return c.(*tcpSocket).conn.Close()
-	// 		},
-	// 		IdleTimeout: 5 * time.Second,
-	// 	})
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("create pool: %w", err)
-	// 	}
-
-	// 	p = pl
-	// 	t.pools[addr] = pl
-	// }
-
-	c, err := net.Dial("tcp", addr)
-	if err != nil {
-		return nil, fmt.Errorf("dial: %w", err)
+		c = &tcpSocket{conn: conn}
 	}
 
-	return &tcpSocket{conn: c}, nil
+	return c, nil
 }
 
 type tcpListener struct {
