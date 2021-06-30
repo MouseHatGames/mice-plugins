@@ -15,8 +15,9 @@ import (
 )
 
 type tcpTransport struct {
-	l     logger.Logger
-	pools map[string]*gncp.GncpPool
+	l         logger.Logger
+	pools     map[string]*gncp.GncpPool
+	dialMutex sync.Mutex
 }
 
 func Transport() options.Option {
@@ -39,6 +40,9 @@ func (t *tcpTransport) Listen(ctx context.Context, addr string) (transport.Liste
 }
 
 func (t *tcpTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
+	t.dialMutex.Lock()
+	defer t.dialMutex.Unlock()
+
 	pool, ok := t.pools[addr]
 	if !ok {
 		p, err := gncp.NewPool(3, 10, func() (net.Conn, error) {
