@@ -12,10 +12,12 @@ import (
 	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/options"
 	"github.com/MouseHatGames/mice/transport"
+	"github.com/eternnoir/gncp"
 )
 
 type tcpTransport struct {
-	l logger.Logger
+	l     logger.Logger
+	pools map[string]*gncp.GncpPool
 }
 
 func Transport() options.Option {
@@ -37,7 +39,21 @@ func (t *tcpTransport) Listen(ctx context.Context, addr string) (transport.Liste
 }
 
 func (t *tcpTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
-	c, err := net.Dial("tcp", addr)
+	pool, ok := t.pools[addr]
+	if !ok {
+		p, err := gncp.NewPool(1, 10, func() (net.Conn, error) {
+			t.l.Debugf("creating connection to %s", addr)
+			return net.Dial("tcp", addr)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create pool: %w", err)
+		}
+
+		pool = p
+		t.pools[addr] = p
+	}
+
+	c, err := pool.GetWithContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("dial: %w", err)
 	}
@@ -74,8 +90,8 @@ func (t *tcpListener) Accept(ctx context.Context, fn func(transport.Socket)) err
 }
 
 type tcpSocket struct {
-	c      io.ReadWriteCloser
-	mr, ms sync.Mutex
+	c  io.ReadWriteCloser
+	ms sync.Mutex
 }
 
 func newSocket(c io.ReadWriteCloser) *tcpSocket {

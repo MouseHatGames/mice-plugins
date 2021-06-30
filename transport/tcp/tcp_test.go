@@ -19,10 +19,11 @@ func TestAll(t *testing.T) {
 		Data:    []byte("hello"),
 	}
 
+	const addr = ":45678"
 	tr := &tcpTransport{
 		l: logger.NewStdoutLogger(),
 	}
-	l, err := tr.Listen(context.Background(), ":0")
+	l, err := tr.Listen(context.Background(), addr)
 	a.Nil(err, "listen")
 	defer l.Close()
 
@@ -43,7 +44,7 @@ func TestAll(t *testing.T) {
 		a.Nil(err, "server send")
 	})
 
-	s, err := tr.Dial(context.Background(), l.Addr().String())
+	s, err := tr.Dial(context.Background(), addr)
 	a.Nil(err, "client dial")
 
 	err = s.Send(context.Background(), dummyMsg)
