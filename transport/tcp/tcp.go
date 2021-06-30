@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/options"
@@ -44,46 +43,46 @@ func (t *tcpTransport) Dial(ctx context.Context, addr string) (transport.Socket,
 	t.dialMutex.Lock()
 	defer t.dialMutex.Unlock()
 
-	p, ok := t.pools[addr]
-	if !ok {
-		pl, err := pool.NewChannelPool(&pool.Config{
-			InitialCap: 5,
-			MaxIdle:    10,
-			MaxCap:     20,
-			Factory: func(p pool.Pool) (interface{}, error) {
-				t.l.Debugf("creating connection to %s", addr)
+	// p, ok := t.pools[addr]
+	// if !ok {
+	// 	pl, err := pool.NewChannelPool(&pool.Config{
+	// 		InitialCap: 5,
+	// 		MaxIdle:    10,
+	// 		MaxCap:     20,
+	// 		Factory: func(p pool.Pool) (interface{}, error) {
+	// 			t.l.Debugf("creating connection to %s", addr)
 
-				c, err := net.Dial("tcp", addr)
-				if err != nil {
-					return nil, err
-				}
+	// 			c, err := net.Dial("tcp", addr)
+	// 			if err != nil {
+	// 				return nil, err
+	// 			}
 
-				return &tcpSocket{
-					conn: c,
-					pool: p,
-				}, nil
-			},
-			Close: func(c interface{}) error {
-				t.l.Debugf("closing connection to %s", addr)
+	// 			return &tcpSocket{
+	// 				conn: c,
+	// 				pool: p,
+	// 			}, nil
+	// 		},
+	// 		Close: func(c interface{}) error {
+	// 			t.l.Debugf("closing connection to %s", addr)
 
-				return c.(*tcpSocket).conn.Close()
-			},
-			IdleTimeout: 5 * time.Second,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("create pool: %w", err)
-		}
+	// 			return c.(*tcpSocket).conn.Close()
+	// 		},
+	// 		IdleTimeout: 5 * time.Second,
+	// 	})
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("create pool: %w", err)
+	// 	}
 
-		p = pl
-		t.pools[addr] = pl
-	}
+	// 	p = pl
+	// 	t.pools[addr] = pl
+	// }
 
-	c, err := p.Get()
+	c, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("dial: %w", err)
 	}
 
-	return c.(*tcpSocket), nil
+	return &tcpSocket{conn: c}, nil
 }
 
 type tcpListener struct {
