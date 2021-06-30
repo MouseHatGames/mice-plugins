@@ -7,7 +7,7 @@ import (
 
 	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/transport"
-	"github.com/eternnoir/gncp"
+	"github.com/pipe01/pool"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +23,7 @@ func TestAll(t *testing.T) {
 	const addr = ":45678"
 	tr := &tcpTransport{
 		l:     logger.NewStdoutLogger(),
-		pools: map[string]*gncp.GncpPool{},
+		pools: map[string]pool.Pool{},
 	}
 	l, err := tr.Listen(context.Background(), addr)
 	a.Nil(err, "listen")

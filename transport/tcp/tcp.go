@@ -7,16 +7,17 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/MouseHatGames/mice/logger"
 	"github.com/MouseHatGames/mice/options"
 	"github.com/MouseHatGames/mice/transport"
-	"github.com/eternnoir/gncp"
+	"github.com/pipe01/pool"
 )
 
 type tcpTransport struct {
 	l         logger.Logger
-	pools     map[string]*gncp.GncpPool
+	pools     map[string]pool.Pool
 	dialMutex sync.Mutex
 }
 
@@ -24,7 +25,7 @@ func Transport() options.Option {
 	return func(o *options.Options) {
 		o.Transport = &tcpTransport{
 			l:     o.Logger.GetLogger("tcp"),
-			pools: map[string]*gncp.GncpPool{},
+			pools: map[string]pool.Pool{},
 		}
 	}
 }
@@ -43,26 +44,46 @@ func (t *tcpTransport) Dial(ctx context.Context, addr string) (transport.Socket,
 	t.dialMutex.Lock()
 	defer t.dialMutex.Unlock()
 
-	pool, ok := t.pools[addr]
+	p, ok := t.pools[addr]
 	if !ok {
-		p, err := gncp.NewPool(3, 10, func() (net.Conn, error) {
-			t.l.Debugf("creating connection to %s", addr)
-			return net.Dial("tcp", addr)
+		pl, err := pool.NewChannelPool(&pool.Config{
+			InitialCap: 5,
+			MaxIdle:    10,
+			MaxCap:     20,
+			Factory: func(p pool.Pool) (interface{}, error) {
+				t.l.Debugf("creating connection to %s", addr)
+
+				c, err := net.Dial("tcp", addr)
+				if err != nil {
+					return nil, err
+				}
+
+				return &tcpSocket{
+					conn: c,
+					pool: p,
+				}, nil
+			},
+			Close: func(c interface{}) error {
+				t.l.Debugf("closing connection to %s", addr)
+
+				return c.(*tcpSocket).conn.Close()
+			},
+			IdleTimeout: 5 * time.Second,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create pool: %w", err)
 		}
 
-		pool = p
-		t.pools[addr] = p
+		p = pl
+		t.pools[addr] = pl
 	}
 
-	c, err := pool.GetWithContext(ctx)
+	c, err := p.Get()
 	if err != nil {
 		return nil, fmt.Errorf("dial: %w", err)
 	}
 
-	return newSocket(c), nil
+	return c.(*tcpSocket), nil
 }
 
 type tcpListener struct {
@@ -89,23 +110,22 @@ func (t *tcpListener) Accept(ctx context.Context, fn func(transport.Socket)) err
 		}
 
 		t.log.Debugf("connection from %s", conn.RemoteAddr())
-		fn(newSocket(conn))
+		fn(&tcpSocket{conn: conn})
 	}
 }
 
 type tcpSocket struct {
-	c      net.Conn
+	conn   net.Conn
+	pool   pool.Pool
 	ms, mr sync.Mutex
 }
 
-func newSocket(c net.Conn) *tcpSocket {
-	return &tcpSocket{
-		c: c,
-	}
-}
-
 func (s *tcpSocket) Close() error {
-	return s.c.Close()
+	if s.pool != nil {
+		return s.pool.Put(s)
+	}
+
+	return s.conn.Close()
 }
 
 func (s *tcpSocket) Send(_ context.Context, msg *transport.Message) error {
@@ -113,15 +133,15 @@ func (s *tcpSocket) Send(_ context.Context, msg *transport.Message) error {
 	defer s.ms.Unlock()
 
 	// Write message size
-	binary.Write(s.c, binary.LittleEndian, int16(messageSize(msg)))
+	binary.Write(s.conn, binary.LittleEndian, int16(messageSize(msg)))
 
 	// Write headers
-	if err := writeMap(s.c, msg.Headers); err != nil {
+	if err := writeMap(s.conn, msg.Headers); err != nil {
 		return fmt.Errorf("write headers: %w", err)
 	}
 
 	// Write data
-	if _, err := s.c.Write(msg.Data); err != nil {
+	if _, err := s.conn.Write(msg.Data); err != nil {
 		return fmt.Errorf("write data: %w", err)
 	}
 
@@ -133,13 +153,13 @@ func (s *tcpSocket) Receive(_ context.Context, msg *transport.Message) error {
 	defer s.mr.Unlock()
 
 	var len int16
-	if err := binary.Read(s.c, binary.LittleEndian, &len); err != nil {
+	if err := binary.Read(s.conn, binary.LittleEndian, &len); err != nil {
 		return fmt.Errorf("read length: %w", err)
 	}
 
 	payload := make([]byte, len)
 
-	read, err := io.ReadFull(s.c, payload)
+	read, err := io.ReadFull(s.conn, payload)
 	if err != nil {
 		return fmt.Errorf("read payload: %w", err)
 	}
