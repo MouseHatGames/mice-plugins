@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"bufio"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -41,7 +40,7 @@ func (t *tcpTransport) Listen(ctx context.Context, addr string) (transport.Liste
 func (t *tcpTransport) Dial(ctx context.Context, addr string) (transport.Socket, error) {
 	pool, ok := t.pools[addr]
 	if !ok {
-		p, err := gncp.NewPool(1, 10, func() (net.Conn, error) {
+		p, err := gncp.NewPool(3, 10, func() (net.Conn, error) {
 			t.l.Debugf("creating connection to %s", addr)
 			return net.Dial("tcp", addr)
 		})
@@ -90,11 +89,11 @@ func (t *tcpListener) Accept(ctx context.Context, fn func(transport.Socket)) err
 }
 
 type tcpSocket struct {
-	c  io.ReadWriteCloser
-	ms sync.Mutex
+	c      net.Conn
+	ms, mr sync.Mutex
 }
 
-func newSocket(c io.ReadWriteCloser) *tcpSocket {
+func newSocket(c net.Conn) *tcpSocket {
 	return &tcpSocket{
 		c: c,
 	}
@@ -125,16 +124,17 @@ func (s *tcpSocket) Send(_ context.Context, msg *transport.Message) error {
 }
 
 func (s *tcpSocket) Receive(_ context.Context, msg *transport.Message) error {
-	r := bufio.NewReader(s.c)
+	s.mr.Lock()
+	defer s.mr.Unlock()
 
 	var len int16
-	if err := binary.Read(r, binary.LittleEndian, &len); err != nil {
+	if err := binary.Read(s.c, binary.LittleEndian, &len); err != nil {
 		return fmt.Errorf("read length: %w", err)
 	}
 
 	payload := make([]byte, len)
 
-	read, err := io.ReadFull(r, payload)
+	read, err := io.ReadFull(s.c, payload)
 	if err != nil {
 		return fmt.Errorf("read payload: %w", err)
 	}
