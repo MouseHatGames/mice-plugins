@@ -166,7 +166,7 @@ func (s *tcpSocket) Send(_ context.Context, msg *transport.Message) error {
 	defer s.ms.Unlock()
 
 	// Write message size
-	binary.Write(s.conn, binary.LittleEndian, int16(messageSize(msg)))
+	binary.Write(s.conn, binary.LittleEndian, int32(messageSize(msg)))
 
 	// Write headers
 	if err := writeMap(s.conn, msg.Headers); err != nil {
@@ -185,7 +185,7 @@ func (s *tcpSocket) Receive(_ context.Context, msg *transport.Message) error {
 	s.mr.Lock()
 	defer s.mr.Unlock()
 
-	var len int16
+	var len int32
 	if err := binary.Read(s.conn, binary.LittleEndian, &len); err != nil {
 		return fmt.Errorf("read length: %w", err)
 	}
@@ -196,7 +196,7 @@ func (s *tcpSocket) Receive(_ context.Context, msg *transport.Message) error {
 	if err != nil {
 		return fmt.Errorf("read payload: %w", err)
 	}
-	if int16(read) != len {
+	if int32(read) != len {
 		return fmt.Errorf("wanted %d bytes, read %d", len, read)
 	}
 
