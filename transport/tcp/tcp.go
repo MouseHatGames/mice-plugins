@@ -25,7 +25,8 @@ type tcpTransport struct {
 
 func Transport(opts ...Option) options.Option {
 	tcpOpts := &tcpOptions{
-		UseConnectionPooling: true,
+		UseConnectionPooling:  true,
+		ConnectionIdleTimeout: 1 * time.Minute,
 	}
 
 	for _, o := range opts {
@@ -55,9 +56,10 @@ func (t *tcpTransport) getPooledSocket(addr string) (*tcpSocket, error) {
 	p, ok := t.pools[addr]
 	if !ok {
 		pl, err := pool.NewChannelPool(&pool.Config{
-			InitialCap: 5,
-			MaxIdle:    10,
-			MaxCap:     20,
+			InitialCap:  5,
+			MaxIdle:     10,
+			MaxCap:      20,
+			IdleTimeout: t.opts.ConnectionIdleTimeout,
 			Factory: func(p pool.Pool) (interface{}, error) {
 				t.l.Debugf("creating connection to %s", addr)
 
@@ -76,7 +78,6 @@ func (t *tcpTransport) getPooledSocket(addr string) (*tcpSocket, error) {
 
 				return c.(*tcpSocket).conn.Close()
 			},
-			IdleTimeout: 5 * time.Second,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create pool: %w", err)

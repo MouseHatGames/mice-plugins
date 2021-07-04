@@ -24,6 +24,7 @@ func TestAll(t *testing.T) {
 	tr := &tcpTransport{
 		l:     logger.NewStdoutLogger(),
 		pools: map[string]pool.Pool{},
+		opts:  &tcpOptions{},
 	}
 	l, err := tr.Listen(context.Background(), addr)
 	a.Nil(err, "listen")
