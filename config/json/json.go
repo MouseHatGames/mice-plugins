@@ -24,7 +24,7 @@ type jsonConfig struct {
 	data     map[string]interface{}
 }
 
-func (c *jsonConfig) Start() error {
+func (c *jsonConfig) load() error {
 	f, err := os.ReadFile(c.filePath)
 	if err != nil {
 		return fmt.Errorf("read file: %w", err)
@@ -50,7 +50,21 @@ func (c *jsonConfig) save() error {
 	return nil
 }
 
+func (c *jsonConfig) loadIfNotLoaded() error {
+	if c.data == nil {
+		if err := c.load(); err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (c *jsonConfig) Get(path ...string) config.Value {
+	if err := c.loadIfNotLoaded(); err != nil {
+		return &jsonValue{err: err}
+	}
+
 	var obj interface{} = c.data
 
 	for _, p := range path {
@@ -65,6 +79,10 @@ func (c *jsonConfig) Get(path ...string) config.Value {
 }
 
 func (c *jsonConfig) Delete(path ...string) error {
+	if err := c.loadIfNotLoaded(); err != nil {
+		return err
+	}
+
 	var obj interface{} = c.data
 
 	for i, p := range path {
@@ -83,6 +101,10 @@ func (c *jsonConfig) Delete(path ...string) error {
 }
 
 func (c *jsonConfig) Set(val interface{}, path ...string) error {
+	if err := c.loadIfNotLoaded(); err != nil {
+		return err
+	}
+
 	var obj interface{} = c.data
 
 	for i, p := range path {
