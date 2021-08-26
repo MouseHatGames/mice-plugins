@@ -17,9 +17,13 @@ type redisBroker struct {
 }
 
 func Broker(ropt *redis.Options) options.Option {
+	return BrokerClient(redis.NewClient(ropt))
+}
+
+func BrokerClient(cl *redis.Client) options.Option {
 	return func(o *options.Options) {
 		o.Broker = &redisBroker{
-			rdb: redis.NewClient(ropt),
+			rdb: cl,
 			log: o.Logger.GetLogger("redispb"),
 		}
 	}
