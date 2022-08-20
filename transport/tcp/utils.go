@@ -108,7 +108,7 @@ func messageSize(msg *transport.Message) int {
 	size := len(msg.Data)
 
 	size++ // Headers map length
-	for k, v := range msg.Headers {
+	for k, v := range msg.MessageHeaders {
 		size += len(k) + 2
 		size += len(v) + 2
 	}
@@ -124,7 +124,7 @@ func decodePayload(p []byte, msg *transport.Message) error {
 	if err != nil {
 		return fmt.Errorf("read header: %w", err)
 	}
-	msg.Headers = header
+	msg.MessageHeaders = header
 
 	dataStart := messageSize(msg)
 	msg.Data = p[dataStart:]

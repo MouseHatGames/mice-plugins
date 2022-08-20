@@ -170,7 +170,7 @@ func (s *tcpSocket) Send(_ context.Context, msg *transport.Message) error {
 	binary.Write(s.conn, binary.LittleEndian, int32(messageSize(msg)))
 
 	// Write headers
-	if err := writeMap(s.conn, msg.Headers); err != nil {
+	if err := writeMap(s.conn, msg.MessageHeaders); err != nil {
 		return fmt.Errorf("write headers: %w", err)
 	}
 

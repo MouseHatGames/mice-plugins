@@ -29,7 +29,7 @@ func (s *grpcSocket) Close() error {
 
 func (s *grpcSocket) Send(ctx context.Context, msg *transport.Message) error {
 	return s.str.Send(&internal.Message{
-		Headers: msg.Headers,
+		Headers: msg.MessageHeaders,
 		Data:    msg.Data,
 	})
 }
@@ -40,7 +40,7 @@ func (s *grpcSocket) Receive(ctx context.Context, msg *transport.Message) error 
 		return err
 	}
 
-	msg.Headers = rec.Headers
+	msg.MessageHeaders = rec.Headers
 	msg.Data = rec.Data
 	return nil
 }
