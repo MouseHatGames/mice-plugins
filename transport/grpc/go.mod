@@ -3,7 +3,7 @@ module github.com/MouseHatGames/mice-plugins/transport/grpc
 go 1.15
 
 require (
-	github.com/MouseHatGames/mice v1.2.9-0.20220821134201-1f6ec0d02b2a
+	github.com/MouseHatGames/mice v1.2.9-0.20220821194945-4b2cd5eb2c45
 	github.com/golang/protobuf v1.5.2
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/silenceper/pool v1.0.0
