@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/MouseHatGames/hat/pkg/client v0.0.0-20210121082126-1b8dbddfe5e7
-	github.com/MouseHatGames/mice v1.2.9-0.20220821012106-dc95715ec8ac
+	github.com/MouseHatGames/mice v1.2.9-0.20220821134201-1f6ec0d02b2a
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	go.opentelemetry.io/otel/exporters/jaeger v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.9.0 // indirect

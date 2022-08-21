@@ -3,7 +3,7 @@ module github.com/MouseHatGames/mice-plugins/transport/tcp
 go 1.15
 
 require (
-	github.com/MouseHatGames/mice v1.2.9-0.20220821012106-dc95715ec8ac
+	github.com/MouseHatGames/mice v1.2.9-0.20220821134201-1f6ec0d02b2a
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pipe01/pool v1.0.2
 	github.com/stretchr/testify v1.7.1
