@@ -47,6 +47,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/MouseHatGames/mice v1.2.9-0.20220820172930-35416aa562c6 h1:NPe4S3jhcSGe4SR0vf9OXnB0C3IO5hZMUPQhLm5tJ28=
 github.com/MouseHatGames/mice v1.2.9-0.20220820172930-35416aa562c6/go.mod h1:CmZuyiR1uddab49ds5aR1h9SSzsZKysb+XhAYHhW2ZU=
+github.com/MouseHatGames/mice v1.2.9-0.20220821012106-dc95715ec8ac h1:5GT+R1hzFxnfeMNeEb3tcnWKdKEb9zT4dGuVlEEHOp8=
+github.com/MouseHatGames/mice v1.2.9-0.20220821012106-dc95715ec8ac/go.mod h1:yYOUNAiM7G6Lg2DrEHqvWnPvSg6MKQSyV2AfM63lrSg=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/PuerkitoBio/purell v1.1.1 h1:WEQqlqaGbrPkxLJWfBwQmfEAE1Z7ONdDLqrN38tNFfI=
