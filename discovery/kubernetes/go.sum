@@ -55,6 +55,8 @@ github.com/MouseHatGames/mice v1.2.9-0.20220821194945-4b2cd5eb2c45 h1:tM6IzFEMTL
 github.com/MouseHatGames/mice v1.2.9-0.20220821194945-4b2cd5eb2c45/go.mod h1:yYOUNAiM7G6Lg2DrEHqvWnPvSg6MKQSyV2AfM63lrSg=
 github.com/MouseHatGames/mice v1.2.9-0.20230506183718-4b778dc00f3c h1:t6R38ZflQ9jB0s5ssU6XmHv95/HOj+jn7tvjwl1QYS0=
 github.com/MouseHatGames/mice v1.2.9-0.20230506183718-4b778dc00f3c/go.mod h1:yYOUNAiM7G6Lg2DrEHqvWnPvSg6MKQSyV2AfM63lrSg=
+github.com/MouseHatGames/mice v1.2.9-0.20230506193607-c7d017a7d2cc h1:s66BeKQkQFaddSCI0eM/fhz+8yBrAOYvGyxPD/TwTew=
+github.com/MouseHatGames/mice v1.2.9-0.20230506193607-c7d017a7d2cc/go.mod h1:yYOUNAiM7G6Lg2DrEHqvWnPvSg6MKQSyV2AfM63lrSg=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/PuerkitoBio/purell v1.1.1 h1:WEQqlqaGbrPkxLJWfBwQmfEAE1Z7ONdDLqrN38tNFfI=

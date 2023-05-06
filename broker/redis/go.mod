@@ -3,7 +3,7 @@ module github.com/MouseHatGames/mice-plugins/broker/redis
 go 1.15
 
 require (
-	github.com/MouseHatGames/mice v1.2.9-0.20230506183718-4b778dc00f3c
+	github.com/MouseHatGames/mice v1.2.9-0.20230506193607-c7d017a7d2cc
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	go.opentelemetry.io/otel/exporters/jaeger v1.9.0 // indirect

@@ -3,7 +3,7 @@ module github.com/MouseHatGames/mice-plugins/broker/amqp
 go 1.15
 
 require (
-	github.com/MouseHatGames/mice v1.2.9-0.20230506183718-4b778dc00f3c
+	github.com/MouseHatGames/mice v1.2.9-0.20230506193607-c7d017a7d2cc
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/streadway/amqp v1.0.0
 	go.opentelemetry.io/otel/exporters/jaeger v1.9.0 // indirect
