@@ -8,15 +8,38 @@ import (
 )
 
 type dnsDiscovery struct {
+	prefix, suffix string
 }
 
-func Discovery() options.Option {
+type Option func(*dnsDiscovery)
+
+func Prefix(p string) Option {
+	return func(dd *dnsDiscovery) {
+		dd.prefix = p
+	}
+}
+
+func Suffix(s string) Option {
+	return func(dd *dnsDiscovery) {
+		dd.suffix = s
+	}
+}
+
+func Discovery(opts ...Option) options.Option {
 	return func(o *options.Options) {
-		o.Discovery = &dnsDiscovery{}
+		dd := &dnsDiscovery{}
+
+		for _, opt := range opts {
+			opt(dd)
+		}
+
+		o.Discovery = dd
 	}
 }
 
 func (d *dnsDiscovery) Find(svc string) (host string, err error) {
+	svc = fmt.Sprintf("%s%s%s", d.prefix, svc, d.suffix)
+
 	ips, err := net.LookupIP(svc)
 	if err != nil {
 		return "", fmt.Errorf("lookup host: %w", err)
