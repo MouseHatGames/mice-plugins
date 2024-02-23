@@ -1,4 +1,4 @@
-module github.com/MouseHatGames/mice-plugins/discovery/dns
+module github.com/MouseHatGames/mice-plugins/discovery/cache
 
 go 1.21.5
 
