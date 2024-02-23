@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/MouseHatGames/mice/discovery"
+	"github.com/MouseHatGames/mice/options"
 	"github.com/patrickmn/go-cache"
 )
 
@@ -22,18 +23,21 @@ func MaxAge(d time.Duration) Option {
 	}
 }
 
-func Discovery(inner discovery.Discovery, opts ...Option) discovery.Discovery {
-	cd := &cacheDiscovery{
-		inner:  inner,
-		maxAge: 5 * time.Minute,
-	}
+func Discovery(inner discovery.Discovery, opts ...Option) options.Option {
+	return func(o *options.Options) {
+		cd := &cacheDiscovery{
+			inner:  inner,
+			maxAge: 5 * time.Minute,
+		}
 
-	for _, opt := range opts {
-		opt(cd)
-	}
+		for _, opt := range opts {
+			opt(cd)
+		}
 
-	cd.cache = cache.New(cd.maxAge, 5*time.Minute)
-	return cd
+		cd.cache = cache.New(cd.maxAge, 5*time.Minute)
+
+		o.Discovery = cd
+	}
 }
 
 func (c *cacheDiscovery) Find(svc string) (host string, err error) {
