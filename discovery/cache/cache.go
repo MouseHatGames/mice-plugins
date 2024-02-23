@@ -23,10 +23,13 @@ func MaxAge(d time.Duration) Option {
 	}
 }
 
-func Discovery(inner discovery.Discovery, opts ...Option) options.Option {
+func Discovery(inner options.Option, opts ...Option) options.Option {
 	return func(o *options.Options) {
+		var innerOpts options.Options
+		inner(&innerOpts)
+
 		cd := &cacheDiscovery{
-			inner:  inner,
+			inner:  innerOpts.Discovery,
 			maxAge: 5 * time.Minute,
 		}
 
